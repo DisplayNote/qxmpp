@@ -220,11 +220,13 @@ QXmppConfiguration &QXmppOutgoingClient::configuration()
 
 void QXmppOutgoingClient::connectToHost()
 {
+    // TODO (lucioa): disabled as we can't connect to resumeHost received in stanzas (srvxmppngprod01.internal.cloudapp.net)
+    //
     // if a host for resumption is available, connect to it
-    if (d->canResume && !d->resumeHost.isEmpty() && d->resumePort) {
-        d->connectToHost(d->resumeHost, d->resumePort);
-        return;
-    }
+    // if (d->canResume && !d->resumeHost.isEmpty() && d->resumePort) {
+    //     d->connectToHost(d->resumeHost, d->resumePort);
+    //     return;
+    // }
 
     // if an explicit host was provided, connect to it
     if (!d->config.host().isEmpty() && d->config.port()) {
@@ -753,6 +755,8 @@ void QXmppOutgoingClient::handleStanza(const QDomElement &nodeRecv)
 
         d->streamManagementEnabled = true;
         enableStreamManagement(true);
+        // TODO (lucioa): force set session started to true due to wrong resume data received in stanzas
+        d->sessionStarted = true;
         // we are connected now
         Q_EMIT connected();
     } else if (QXmppStreamManagementResumed::isStreamManagementResumed(nodeRecv)) {
@@ -764,6 +768,8 @@ void QXmppOutgoingClient::handleStanza(const QDomElement &nodeRecv)
 
         d->streamManagementEnabled = true;
         enableStreamManagement(false);
+        // TODO (lucioa): force set session started to true due to wrong resume data received in stanzas
+        d->sessionStarted = true;
         // we are connected now
         // TODO: The stream was resumed. Therefore, we should not send presence information or request the roster.
         Q_EMIT connected();
@@ -788,6 +794,8 @@ void QXmppOutgoingClient::handleStanza(const QDomElement &nodeRecv)
             d->sessionStarted = true;
             Q_EMIT connected();
         } else {
+            // TODO (lucioa): force set session started to true due to wrong resume data received in stanzas
+            d->sessionStarted = true;
             // we are connected now, but stream management is disabled
             Q_EMIT connected();
         }

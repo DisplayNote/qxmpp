@@ -27,6 +27,7 @@
 #include "QXmppVersionManager.h"
 
 #include <QDomElement>
+#include <QRandomGenerator>
 #include <QSslSocket>
 #include <QTimer>
 
@@ -67,15 +68,33 @@ void QXmppClientPrivate::addProperCapability(QXmppPresence &presence)
 
 int QXmppClientPrivate::getNextReconnectTime() const
 {
+    // Add some randomization to library's reconnection time logic, so 2 different clients
+    // having connection problems at the same time can reconnect at different time to avoid
+    // server overload
+    //
+    //  1-5   retries:  5-15 seconds delay
+    //  5-10  retries: 15-25 seconds delay
+    // 10-15  retries: 35-45 seconds delay
+    //    15+ retires: 50-70 seconds delay
+
+    qint32 randomRange = reconnectionTries < 15 ? 10 : 20;
+    qint32 randomIncrementDelay = QRandomGenerator::global()->bounded((quint32)(randomRange));
+    int calculatedDelay;
+
     if (reconnectionTries < 5) {
-        return 10 * 1000;
+        calculatedDelay = (5 + randomIncrementDelay) * 1000;
     } else if (reconnectionTries < 10) {
-        return 20 * 1000;
+        calculatedDelay = (15 + randomIncrementDelay) * 1000;
     } else if (reconnectionTries < 15) {
-        return 40 * 1000;
+        calculatedDelay = (35 + randomIncrementDelay) * 1000;
     } else {
-        return 60 * 1000;
+        calculatedDelay = (50 + randomIncrementDelay) * 1000;
     }
+
+    qDebug() << Q_FUNC_INFO << "Reconnection tries:" << reconnectionTries
+             << "- Calculated delay:" << calculatedDelay;
+
+    return calculatedDelay;
 }
 
 QStringList QXmppClientPrivate::discoveryFeatures()
@@ -929,6 +948,7 @@ void QXmppClient::_q_streamConnected()
 {
     d->receivedConflict = false;
     d->reconnectionTries = 0;
+    d->reconnectionTimer->stop();
     d->isActive = true;
 
     // notify managers
@@ -959,6 +979,7 @@ void QXmppClient::_q_streamError(QXmppClient::Error err)
         } else if (err == QXmppClient::SocketError && !d->receivedConflict) {
             // schedule reconnect
             d->reconnectionTimer->start(d->getNextReconnectTime());
+            d->reconnectionTries++;
         } else if (err == QXmppClient::KeepAliveError) {
             // if we got a keepalive error, reconnect in one second
             d->reconnectionTimer->start(1000);
