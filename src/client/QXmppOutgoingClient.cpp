@@ -755,8 +755,9 @@ void QXmppOutgoingClient::handleStanza(const QDomElement &nodeRecv)
 
         d->streamManagementEnabled = true;
         enableStreamManagement(true);
-        // we are connected now
+        // TODO (lucioa): force set session started to true due to wrong resume data received in stanzas
         d->sessionStarted = true;
+        // we are connected now
         Q_EMIT connected();
     } else if (QXmppStreamManagementResumed::isStreamManagementResumed(nodeRecv)) {
         QXmppStreamManagementResumed streamManagementResumed;
@@ -767,9 +768,10 @@ void QXmppOutgoingClient::handleStanza(const QDomElement &nodeRecv)
 
         d->streamManagementEnabled = true;
         enableStreamManagement(false);
+        // TODO (lucioa): force set session started to true due to wrong resume data received in stanzas
+        d->sessionStarted = true;
         // we are connected now
         // TODO: The stream was resumed. Therefore, we should not send presence information or request the roster.
-        d->sessionStarted = true;
         Q_EMIT connected();
     } else if (QXmppStreamManagementFailed::isStreamManagementFailed(nodeRecv)) {
         if (d->isResuming) {
@@ -792,8 +794,9 @@ void QXmppOutgoingClient::handleStanza(const QDomElement &nodeRecv)
             d->sessionStarted = true;
             Q_EMIT connected();
         } else {
-            // we are connected now, but stream management is disabled
+            // TODO (lucioa): force set session started to true due to wrong resume data received in stanzas
             d->sessionStarted = true;
+            // we are connected now, but stream management is disabled
             Q_EMIT connected();
         }
     }
