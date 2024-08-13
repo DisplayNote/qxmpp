@@ -220,11 +220,13 @@ QXmppConfiguration &QXmppOutgoingClient::configuration()
 
 void QXmppOutgoingClient::connectToHost()
 {
+    // TODO (lucioa): disabled as we can't connect to resumeHost received in stanzas (srvxmppngprod01.internal.cloudapp.net)
+    //
     // if a host for resumption is available, connect to it
-    if (d->canResume && !d->resumeHost.isEmpty() && d->resumePort) {
-        d->connectToHost(d->resumeHost, d->resumePort);
-        return;
-    }
+    // if (d->canResume && !d->resumeHost.isEmpty() && d->resumePort) {
+    //     d->connectToHost(d->resumeHost, d->resumePort);
+    //     return;
+    // }
 
     // if an explicit host was provided, connect to it
     if (!d->config.host().isEmpty() && d->config.port()) {
