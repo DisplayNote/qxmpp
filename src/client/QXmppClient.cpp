@@ -964,7 +964,10 @@ void QXmppClient::_q_streamConnected()
 void QXmppClient::_q_streamDisconnected()
 {
    // schedule reconnect if not already scheduled
-    if (!d->receivedConflict && !d->reconnectionTimer->isActive()) {
+    if (!d->receivedConflict
+        && !d->reconnectionTimer->isActive()
+        && d->stream->configuration().autoReconnectionEnabled()
+        && d->clientPresence.type() == QXmppPresence::Available) {
         qDebug() << Q_FUNC_INFO << "reconnection timer not active, relaunching...";
         d->reconnectionTimer->start(d->getNextReconnectTime());
         d->reconnectionTries++;
