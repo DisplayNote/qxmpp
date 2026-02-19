@@ -1,0 +1,274 @@
+trigger:
+  tags:
+    include:
+      - '*'
+
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    exclude:
+      - doc
+      - README.md
+      - COPYING
+      - LICENSES
+  drafts: false
+
+resources:
+  repositories:
+    - repository: ci
+      type: github
+      endpoint: "DisplayNote through PAT."
+      name: DisplayNote/qt-conan-ci
+      ref: refs/tags/2.2.1
+
+variables:
+  - group: montage-client-environment-variables
+  - name: projectFile
+    value: 'CMakeLists.txt'
+  - name: cmakeCommonArgs
+    value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF'
+
+stages:
+  - template: common/setup.yml@ci
+
+  - stage: macos_x86_64
+    dependsOn: [setup]
+    condition: succeeded('setup')
+    displayName: 'BUILD | macos_x86_64'
+    jobs:
+      - job: macos_x86_64
+        condition: succeeded()
+        variables:
+          qt-version: '6.5.6'
+          qt-artifact-name: 'qt-mac-desktop-6.5.6'
+          qt-artifact-version: '1.0.2'
+          xcode-version: '14.2'
+          projectFile: ${{ variables.projectFile }}
+          CONAN_USER_HOME: $(Pipeline.Workspace)
+          vstsFeed: 'Montage/build-tools'
+        strategy:
+          matrix:
+            mac:
+              imageName: 'macos-14'
+        pool:
+          vmImage: $(imageName)
+        steps:
+          - checkout: self
+            clean: true
+            submodules: recursive
+            persistCredentials: true
+
+          - template: common/python.yml@ci
+
+          - template: common/conan/config.yml@ci
+
+          - template: common/xcode.yml@ci
+
+          - template: common/qt.yml@ci
+
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-clang
+              qtKit: macos
+              platform: Macos
+              buildType: Debug
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=x86_64
+
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-clang
+              qtKit: macos
+              platform: Macos
+              buildType: Release
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=x86_64
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: $(Build.ArtifactStagingDirectory)
+              artifactName: build-folder
+            displayName: 'PUBLISH | Publish results'
+
+  - stage: ios_arm64
+    dependsOn: [setup]
+    condition: succeeded('setup')
+    displayName: 'BUILD | ios_arm64'
+    jobs:
+      - job: ios_arm64
+        condition: succeeded()
+        variables:
+          qt-version: '6.5.6'
+          qt-artifact-name: 'qt-mac-ios-6.5.6'
+          qt-artifact-version: '1.0.2'
+          xcode-version: '14.2'
+          projectFile: ${{ variables.projectFile }}
+          CONAN_USER_HOME: $(Pipeline.Workspace)
+          vstsFeed: 'Montage/build-tools'
+        strategy:
+          matrix:
+            mac:
+              imageName: 'macos-14'
+        pool:
+          vmImage: $(imageName)
+        steps:
+          - checkout: self
+            clean: true
+            submodules: recursive
+            persistCredentials: true
+
+          - template: common/python.yml@ci
+
+          - template: common/conan/config.yml@ci
+
+          - template: common/xcode.yml@ci
+
+          - template: common/qt.yml@ci
+
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-ios-clang
+              qtKit: macos
+              platform: iOS
+              buildType: Debug
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/ios/lib/cmake/Qt6/qt.toolchain.cmake'
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/ios
+                -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=arm64
+                -DCMAKE_SYSTEM_NAME=iOS
+                -DCMAKE_OSX_SYSROOT=iphoneos
+
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-ios-clang
+              qtKit: macos
+              platform: iOS
+              buildType: Release
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/ios/lib/cmake/Qt6/qt.toolchain.cmake'
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/ios
+                -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=arm64
+                -DCMAKE_SYSTEM_NAME=iOS
+                -DCMAKE_OSX_SYSROOT=iphoneos
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: $(Build.ArtifactStagingDirectory)
+              artifactName: build-folder
+            displayName: 'PUBLISH | Publish results'
+
+  - ${{ each architecture in ['android_arm64_v8a', 'android_armv7', 'android_x86_64'] }}:
+    - stage: ${{ replace(architecture, '-', '_') }}
+      dependsOn: [setup]
+      condition: succeeded('setup')
+      displayName: 'BUILD | ${{ architecture }}'
+      jobs:
+        - job: ${{ replace(architecture, '-', '_') }}
+          condition: succeeded()
+          variables:
+            qt-version: '6.5.11'
+            qt-artifact-name: 'qt-linux-android-6.5.11'
+            qt-artifact-version: '1.0.8'
+            projectFile: ${{ variables.projectFile }}
+            CONAN_USER_HOME: $(Pipeline.Workspace)
+            vstsFeed: 'Montage/build-tools'
+            ${{ if eq(architecture, 'android_arm64_v8a') }}:
+              androidAbi: 'arm64-v8a'
+            ${{ if eq(architecture, 'android_armv7') }}:
+              androidAbi: 'armeabi-v7a'
+            ${{ if eq(architecture, 'android_x86_64') }}:
+              androidAbi: 'x86_64'
+          pool:
+            name: agent-pool-ubuntu2204-vmss
+          steps:
+            - checkout: self
+              clean: true
+              submodules: recursive
+              persistCredentials: true
+
+            - template: common/python.yml@ci
+
+            - template: common/conan/config.yml@ci
+
+            - template: common/qt.yml@ci
+
+            - template: common/ndk.yml@ci
+              parameters:
+                version: '28.2.13676358'
+
+            - template: common/build-unix.yml@ci
+              parameters:
+                spec: android-clang
+                qtKit: gcc_64
+                platform: Android
+                buildType: Debug
+                buildSystem: cmake
+                cmakeGenerator: Ninja
+                cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
+                args: >-
+                  $(cmakeCommonArgs)
+                  -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}
+                  -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/gcc_64
+                  -DQT_ANDROID_ABI=$(androidAbi)
+                  -DANDROID_ABI=$(androidAbi)
+                  -DANDROID_PLATFORM=android-26
+
+            - template: common/build-unix.yml@ci
+              parameters:
+                spec: android-clang
+                qtKit: gcc_64
+                platform: Android
+                buildType: Release
+                buildSystem: cmake
+                cmakeGenerator: Ninja
+                cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
+                args: >-
+                  $(cmakeCommonArgs)
+                  -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}
+                  -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/gcc_64
+                  -DQT_ANDROID_ABI=$(androidAbi)
+                  -DANDROID_ABI=$(androidAbi)
+                  -DANDROID_PLATFORM=android-26
+
+            - task: PublishBuildArtifacts@1
+              inputs:
+                pathToPublish: $(Build.ArtifactStagingDirectory)
+                artifactName: build-folder
+              displayName: 'PUBLISH | Publish results'
+
+  - template: msvc19-x86_64/build.yml@ci
+    parameters:
+      projectFile: ${{ variables.projectFile }}
+      buildSystem: cmake
+      cmakeGenerator: 'Ninja Multi-Config'
+      cmakeArgsDebug: >-
+        $(cmakeCommonArgs)
+        -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2019_64
+      cmakeArgsRelease: >-
+        $(cmakeCommonArgs)
+        -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2019_64
+
+  - template: common/deploy-develop.yml@ci
+    parameters:
+      conanfile: 'conanfile.py'
+      packageName: 'qxmpp'
+      stageDependencies: ['setup','msvc19_x86_64', 'macos_x86_64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
+      conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
