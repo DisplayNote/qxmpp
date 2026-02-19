@@ -15,6 +15,17 @@ pr:
       - LICENSES
   drafts: false
 
+parameters:
+  - name: androidArchitectures
+    type: object
+    default:
+      - name: android_arm64_v8a
+        abi: arm64-v8a
+      - name: android_armv7
+        abi: armeabi-v7a
+      - name: android_x86_64
+        abi: x86_64
+
 resources:
   repositories:
     - repository: ci
@@ -175,13 +186,13 @@ stages:
               artifactName: build-folder
             displayName: 'PUBLISH | Publish results'
 
-  - ${{ each architecture in ['android_arm64_v8a', 'android_armv7', 'android_x86_64'] }}:
-    - stage: ${{ replace(architecture, '-', '_') }}
+  - ${{ each arch in parameters.androidArchitectures }}:
+    - stage: ${{ replace(arch.name, '-', '_') }}
       dependsOn: [setup]
       condition: succeeded('setup')
-      displayName: 'BUILD | ${{ architecture }}'
+      displayName: 'BUILD | ${{ arch.name }}'
       jobs:
-        - job: ${{ replace(architecture, '-', '_') }}
+        - job: ${{ replace(arch.name, '-', '_') }}
           condition: succeeded()
           variables:
             qt-version: '6.5.11'
@@ -190,12 +201,8 @@ stages:
             projectFile: ${{ variables.projectFile }}
             CONAN_USER_HOME: $(Pipeline.Workspace)
             vstsFeed: 'Montage/build-tools'
-            ${{ if eq(architecture, 'android_arm64_v8a') }}:
-              androidAbi: 'arm64-v8a'
-            ${{ if eq(architecture, 'android_armv7') }}:
-              androidAbi: 'armeabi-v7a'
-            ${{ if eq(architecture, 'android_x86_64') }}:
-              androidAbi: 'x86_64'
+            architecture: ${{ arch.name }}
+            androidAbi: ${{ arch.abi }}
           pool:
             name: agent-pool-ubuntu2204-vmss
           steps:
@@ -222,10 +229,10 @@ stages:
                 buildType: Debug
                 buildSystem: cmake
                 cmakeGenerator: Ninja
-                cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
+                cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
                 args: >-
                   $(cmakeCommonArgs)
-                  -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}
+                  -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}
                   -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/gcc_64
                   -DQT_ANDROID_ABI=$(androidAbi)
                   -DANDROID_ABI=$(androidAbi)
@@ -239,10 +246,10 @@ stages:
                 buildType: Release
                 buildSystem: cmake
                 cmakeGenerator: Ninja
-                cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
+                cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
                 args: >-
                   $(cmakeCommonArgs)
-                  -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ architecture }}
+                  -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}
                   -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/gcc_64
                   -DQT_ANDROID_ABI=$(androidAbi)
                   -DANDROID_ABI=$(androidAbi)
