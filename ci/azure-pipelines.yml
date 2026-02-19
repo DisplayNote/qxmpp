@@ -37,7 +37,7 @@ resources:
 variables:
   - group: montage-client-environment-variables
   - name: projectFile
-    value: 'CMakeLists.txt'
+    value: 'qxmpp/CMakeLists.txt'
   - name: cmakeCommonArgs
     value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF'
 
@@ -275,7 +275,7 @@ stages:
 
   - template: common/deploy-develop.yml@ci
     parameters:
-      conanfile: 'conanfile.py'
+      conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
       stageDependencies: ['setup','msvc19_x86_64', 'macos_x86_64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
       conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
