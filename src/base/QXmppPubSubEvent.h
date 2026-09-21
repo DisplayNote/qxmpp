@@ -9,6 +9,7 @@
 #include "QXmppPubSubSubscription.h"
 
 #include <functional>
+#include <utility>
 
 #include <QDomElement>
 #include <QSharedData>
@@ -139,7 +140,7 @@ void QXmppPubSubEvent<T>::parseItems(const QDomElement &parent)
 template<typename T>
 void QXmppPubSubEvent<T>::serializeItems(QXmlStreamWriter *writer) const
 {
-    for (const auto &item : qAsConst(m_items)) {
+    for (const auto &item : std::as_const(m_items)) {
         item.toXml(writer);
     }
 }
