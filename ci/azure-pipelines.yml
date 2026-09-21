@@ -32,7 +32,7 @@ resources:
       type: github
       endpoint: "DisplayNote through PAT."
       name: DisplayNote/qt-conan-ci
-      ref: refs/tags/2.2.1
+      ref: refs/heads/feature/141677_qt_6_8_8
 
 variables:
   - group: montage-client-environment-variables
@@ -52,17 +52,17 @@ stages:
       - job: macos_x86_64
         condition: succeeded()
         variables:
-          qt-version: '6.5.6'
-          qt-artifact-name: 'qt-mac-desktop-6.5.6'
-          qt-artifact-version: '1.0.2'
-          xcode-version: '14.2'
+          qt-version: '6.8.8'
+          qt-artifact-name: 'qt-mac-desktop-6.8.8'
+          qt-artifact-version: '1.0.0'
+          xcode-version: '26.2'
           projectFile: ${{ variables.projectFile }}
           CONAN_USER_HOME: $(Pipeline.Workspace)
           vstsFeed: 'Montage/build-tools'
         strategy:
           matrix:
             mac:
-              imageName: 'macos-14'
+              imageName: 'macos-15'
         pool:
           vmImage: $(imageName)
         steps:
@@ -119,17 +119,17 @@ stages:
       - job: ios_arm64
         condition: succeeded()
         variables:
-          qt-version: '6.5.6'
-          qt-artifact-name: 'qt-mac-ios-6.5.6'
-          qt-artifact-version: '1.0.2'
-          xcode-version: '14.2'
+          qt-version: '6.8.8'
+          qt-artifact-name: 'qt-mac-ios-6.8.8'
+          qt-artifact-version: '1.0.0'
+          xcode-version: '26.2'
           projectFile: ${{ variables.projectFile }}
           CONAN_USER_HOME: $(Pipeline.Workspace)
           vstsFeed: 'Montage/build-tools'
         strategy:
           matrix:
             mac:
-              imageName: 'macos-14'
+              imageName: 'macos-15'
         pool:
           vmImage: $(imageName)
         steps:
@@ -195,9 +195,9 @@ stages:
         - job: ${{ replace(arch.name, '-', '_') }}
           condition: succeeded()
           variables:
-            qt-version: '6.5.11'
-            qt-artifact-name: 'qt-linux-android-6.5.11'
-            qt-artifact-version: '1.0.8'
+            qt-version: '6.8.8'
+            qt-artifact-name: 'qt-linux-android-6.8.8'
+            qt-artifact-version: '1.0.0'
             projectFile: ${{ variables.projectFile }}
             CONAN_USER_HOME: $(Pipeline.Workspace)
             vstsFeed: 'Montage/build-tools'
@@ -236,7 +236,7 @@ stages:
                   -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/gcc_64
                   -DQT_ANDROID_ABI=$(androidAbi)
                   -DANDROID_ABI=$(androidAbi)
-                  -DANDROID_PLATFORM=android-26
+                  -DANDROID_PLATFORM=android-28
 
             - template: common/build-unix.yml@ci
               parameters:
@@ -253,7 +253,7 @@ stages:
                   -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/gcc_64
                   -DQT_ANDROID_ABI=$(androidAbi)
                   -DANDROID_ABI=$(androidAbi)
-                  -DANDROID_PLATFORM=android-26
+                  -DANDROID_PLATFORM=android-28
 
             - task: PublishBuildArtifacts@1
               inputs:
@@ -261,21 +261,21 @@ stages:
                 artifactName: build-folder
               displayName: 'PUBLISH | Publish results'
 
-  - template: msvc19-x86_64/build.yml@ci
+  - template: windows-x86_64/build.yml@ci
     parameters:
       projectFile: ${{ variables.projectFile }}
       buildSystem: cmake
       cmakeGenerator: 'Ninja Multi-Config'
       cmakeArgsDebug: >-
         $(cmakeCommonArgs)
-        -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2019_64
+        -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2022_64
       cmakeArgsRelease: >-
         $(cmakeCommonArgs)
-        -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2019_64
+        -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2022_64
 
   - template: common/deploy-develop.yml@ci
     parameters:
       conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
-      stageDependencies: ['setup','msvc19_x86_64', 'macos_x86_64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
+      stageDependencies: ['setup','windows_x86_64', 'macos_x86_64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
       conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
