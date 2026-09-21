@@ -17,7 +17,12 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules")
 
-set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR}/install/${CMAKE_SYSTEM_NAME}/${CMAKE_BUILD_TYPE})
+# Default to a <platform>/<build type> layout matching conanfile.py, but let the
+# caller (CI passes -DCMAKE_INSTALL_PREFIX) decide where the package is staged.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/install/${CMAKE_SYSTEM_NAME}/${CMAKE_BUILD_TYPE}"
+        CACHE PATH "Install path prefix" FORCE)
+endif()
 
 # Qt
 if(NOT DEFINED QT_VERSION_MAJOR)
