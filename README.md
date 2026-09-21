@@ -67,9 +67,9 @@ QXmpp is released under the terms of the GNU Lesser General Public License, vers
 
 2. Set Win64/Qt6 environment
     ```
-    "c:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-    set Qt6_DIR=C:\Qt\6.5.6\msvc2019_64\lib\cmake\Qt6
-    set Qt6Core5Compat_DIR=C:\Qt\6.5.6\msvc2019_64\lib\cmake\Qt6Core5Compat
+    "c:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+    set Qt6_DIR=C:\Qt\6.8.8\msvc2022_64\lib\cmake\Qt6
+    set Qt6Core5Compat_DIR=C:\Qt\6.8.8\msvc2022_64\lib\cmake\Qt6Core5Compat
     ```
 3. Create project
     ```
@@ -97,7 +97,7 @@ $ git checkout v1.6.1
 $ cd qxmpp
 $ mkdir build
 $ cd build
-$ cmake -DCMAKE_PREFIX_PATH=~/Qt/6.5.6/macos/ -DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_INSTALL_PREFIX:PATH=./install ..
+$ cmake -DCMAKE_PREFIX_PATH=~/Qt/6.8.8/macos/ -DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_INSTALL_PREFIX:PATH=./install ..
 $ cmake --build .
 $ cmake --build . --target install
 $ conan export-pkg .. qxmpp/1.6.1@dn/develop -pr macos.x86_64.release -f
