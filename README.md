@@ -79,30 +79,38 @@ QXmpp is released under the terms of the GNU Lesser General Public License, vers
 4. Build and create Release package
     ```
     cmake --build build --config Release
-    cmake --install build --prefix install\Windows\Release --config Release
+    cmake --install build --prefix Windows\Release --config Release
     conan export-pkg . qxmpp/1.6.1@dn/stable -pr msvc19.x86_64.release -f
     ```
 
 5. Build and create Debug package
     ```
     cmake --build build --config Debug
-    cmake --install build --prefix install\Windows\Debug --config Debug
+    cmake --install build --prefix Windows\Debug --config Debug
     conan export-pkg . qxmpp/1.6.1@dn/stable -pr msvc19.x86_64.debug -f
     ```
+
+**NOTE**: the install prefix is the layout `conanfile.py` packages from —
+`<Platform>/<BuildType>`, and `<Platform>/<arch>/<BuildType>` on macOS, relative
+to the folder `conan export-pkg` runs in. The recipe now raises if that folder is
+missing rather than publishing an empty package, so keep the prefix in step with it.
 
 ### MacOS platform
 ```
 $ git clone  https://github.com/qxmpp-project/qxmpp
 $ git checkout v1.6.1
 $ cd qxmpp
-$ mkdir build
-$ cd build
-$ cmake -DCMAKE_PREFIX_PATH=~/Qt/6.8.8/macos/ -DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_INSTALL_PREFIX:PATH=./install ..
-$ cmake --build .
-$ cmake --build . --target install
-$ conan export-pkg .. qxmpp/1.6.1@dn/develop -pr macos.x86_64.release -f
+$ cmake -B build -DCMAKE_PREFIX_PATH=~/Qt/6.8.8/macos/ -DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64" .
+$ cmake --build build
+$ cmake --install build --prefix Macos/x86_64/Release
+$ conan export-pkg . qxmpp/1.6.1@dn/develop -pr macos.x86_64.release -f
 ```
-To generate Debug package change ```-DCMAKE_BUILD_TYPE=Debug``` and select the profile ```macos.x86_64.debug```
+To generate the Debug package change ```-DCMAKE_BUILD_TYPE=Debug```, install to
+```Macos/x86_64/Debug``` and select the profile ```macos.x86_64.debug```.
+
+For arm64, pass ```-DCMAKE_OSX_ARCHITECTURES="arm64"```, install to
+```Macos/armv8/<BuildType>``` (the arch level uses conan's own `settings.arch`
+spelling) and use the ```macos.armv8.*``` profiles.
 
 
 ## Building (original)
