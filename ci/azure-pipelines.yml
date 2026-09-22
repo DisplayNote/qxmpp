@@ -223,9 +223,29 @@ stages:
 
           - template: common/qt.yml@ci
 
-          # The qt-mac-ios-6.8.8 artifact ships release-only static libraries
-          # (no *_debug.a), so an iOS Debug configure fails on Qt6::BundledPcre2.
-          # Build iOS in Release only until the Qt iOS kit is rebuilt with debug libs.
+          # Both configurations are built, like log4qt and avcore: deploy-develop
+          # packages a debug and a release conan package per profile, so a missing
+          # iOS/Debug tree fails the deploy (conanfile.py raises rather than
+          # publishing an empty package). A debug build does not need debug Qt
+          # libraries - it compiles our own objects with debug info and links the
+          # release Qt, which is what qmake already does for the other libraries.
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-ios-clang
+              qtKit: macos
+              platform: iOS
+              buildType: Debug
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/ios/lib/cmake/Qt6/qt.toolchain.cmake'
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/ios
+                -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=arm64
+                -DCMAKE_SYSTEM_NAME=iOS
+                -DCMAKE_OSX_SYSROOT=iphoneos
+
           - template: common/build-unix.yml@ci
             parameters:
               spec: macx-ios-clang
