@@ -38,8 +38,11 @@ variables:
   - group: montage-client-environment-variables
   - name: projectFile
     value: 'qxmpp/CMakeLists.txt'
+  # BUILD_UNVERSIONED_LIBRARY keeps the install tree free of the
+  # libQXmppQt6.dylib -> libQXmppQt6.4.dylib -> libQXmppQt6.1.6.1.dylib symlink
+  # chain, which the CopyFiles task in common/build-unix.yml@ci cannot stage.
   - name: cmakeCommonArgs
-    value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF'
+    value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DBUILD_UNVERSIONED_LIBRARY=ON'
 
 stages:
   - template: common/setup.yml@ci
@@ -79,11 +82,16 @@ stages:
 
           - template: common/qt.yml@ci
 
+          # Every stage publishes into the same 'build-folder' artifact, so the
+          # two macOS stages stage under Macos/<conan arch>/<build type> to keep
+          # from overwriting each other. The arch level uses conan's own
+          # settings.arch spelling ('x86_64', 'armv8') so conanfile.py can build
+          # the path with no translation table - same convention as log4qt.
           - template: common/build-unix.yml@ci
             parameters:
               spec: macx-clang
               qtKit: macos
-              platform: Macos
+              platform: Macos/x86_64
               buildType: Debug
               buildSystem: cmake
               cmakeGenerator: Ninja
@@ -96,7 +104,7 @@ stages:
             parameters:
               spec: macx-clang
               qtKit: macos
-              platform: Macos
+              platform: Macos/x86_64
               buildType: Release
               buildSystem: cmake
               cmakeGenerator: Ninja
@@ -111,16 +119,16 @@ stages:
               artifactName: build-folder
             displayName: 'PUBLISH | Publish results'
 
-  - stage: ios_arm64
+  - stage: macos_arm64
     dependsOn: [setup]
     condition: succeeded('setup')
-    displayName: 'BUILD | ios_arm64'
+    displayName: 'BUILD | macos_arm64'
     jobs:
-      - job: ios_arm64
+      - job: macos_arm64
         condition: succeeded()
         variables:
           qt-version: '6.8.8'
-          qt-artifact-name: 'qt-mac-ios-6.8.8'
+          qt-artifact-name: 'qt-mac-desktop-6.8.8'
           qt-artifact-version: '1.0.0'
           xcode-version: '26.2'
           projectFile: ${{ variables.projectFile }}
@@ -146,6 +154,85 @@ stages:
 
           - template: common/qt.yml@ci
 
+          # macos-15 agents are Apple Silicon, so arm64 builds natively; the
+          # qt-mac-desktop-6.8.8 kit is universal and serves both macOS stages.
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-clang
+              qtKit: macos
+              platform: Macos/armv8
+              buildType: Debug
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=arm64
+
+          - template: common/build-unix.yml@ci
+            parameters:
+              spec: macx-clang
+              qtKit: macos
+              platform: Macos/armv8
+              buildType: Release
+              buildSystem: cmake
+              cmakeGenerator: Ninja
+              args: >-
+                $(cmakeCommonArgs)
+                -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
+                -DCMAKE_OSX_ARCHITECTURES=arm64
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: $(Build.ArtifactStagingDirectory)
+              artifactName: build-folder
+            displayName: 'PUBLISH | Publish results'
+
+  - stage: ios_arm64
+    dependsOn: [setup]
+    condition: succeeded('setup')
+    displayName: 'BUILD | ios_arm64'
+    jobs:
+      - job: ios_arm64
+        condition: succeeded()
+        variables:
+          qt-version: '6.8.8'
+          qt-artifact-name: 'qt-mac-ios-6.8.8'
+          # 1.0.1 repackages the iOS kit so its CMake config files and its
+          # libraries agree; 1.0.0 shipped *Targets-debug.cmake referencing
+          # *_debug.a files it had stripped, which aborted find_package(Qt6)
+          # for every CMAKE_BUILD_TYPE.
+          qt-artifact-version: '1.0.1'
+          xcode-version: '26.2'
+          projectFile: ${{ variables.projectFile }}
+          CONAN_USER_HOME: $(Pipeline.Workspace)
+          vstsFeed: 'Montage/build-tools'
+        strategy:
+          matrix:
+            mac:
+              imageName: 'macos-15'
+        pool:
+          vmImage: $(imageName)
+        steps:
+          - checkout: self
+            clean: true
+            submodules: recursive
+            persistCredentials: true
+
+          - template: common/python.yml@ci
+
+          - template: common/conan/config.yml@ci
+
+          - template: common/xcode.yml@ci
+
+          - template: common/qt.yml@ci
+
+          # Both configurations are built, like log4qt and avcore: deploy-develop
+          # packages a debug and a release conan package per profile, so a missing
+          # iOS/Debug tree fails the deploy (conanfile.py raises rather than
+          # publishing an empty package). A debug build does not need debug Qt
+          # libraries - it compiles our own objects with debug info and links the
+          # release Qt, which is what qmake already does for the other libraries.
           - template: common/build-unix.yml@ci
             parameters:
               spec: macx-ios-clang
@@ -228,7 +315,6 @@ stages:
                 platform: Android
                 buildType: Debug
                 buildSystem: cmake
-                cmakeGenerator: Ninja
                 cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
                 args: >-
                   $(cmakeCommonArgs)
@@ -245,7 +331,6 @@ stages:
                 platform: Android
                 buildType: Release
                 buildSystem: cmake
-                cmakeGenerator: Ninja
                 cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
                 args: >-
                   $(cmakeCommonArgs)
@@ -265,7 +350,6 @@ stages:
     parameters:
       projectFile: ${{ variables.projectFile }}
       buildSystem: cmake
-      cmakeGenerator: 'Ninja Multi-Config'
       cmakeArgsDebug: >-
         $(cmakeCommonArgs)
         -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2022_64
@@ -277,5 +361,5 @@ stages:
     parameters:
       conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
-      stageDependencies: ['setup','windows_x86_64', 'macos_x86_64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
-      conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
+      stageDependencies: ['setup', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
+      conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'macos.arm64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']

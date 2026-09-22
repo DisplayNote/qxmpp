@@ -51,10 +51,15 @@ install(
 )
 
 set_target_properties(${QXMPPOMEMO_TARGET} PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${SO_VERSION}
     EXPORT_NAME Omemo
 )
+
+if(NOT BUILD_UNVERSIONED_LIBRARY)
+    set_target_properties(${QXMPPOMEMO_TARGET} PROPERTIES
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${SO_VERSION}
+    )
+endif()
 
 install(
     TARGETS ${QXMPPOMEMO_TARGET}
