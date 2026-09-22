@@ -109,8 +109,10 @@ To generate the Debug package change ```-DCMAKE_BUILD_TYPE=Debug```, install to
 ```Macos/x86_64/Debug``` and select the profile ```macos.x86_64.debug```.
 
 For arm64, pass ```-DCMAKE_OSX_ARCHITECTURES="arm64"```, install to
-```Macos/armv8/<BuildType>``` (the arch level uses conan's own `settings.arch`
-spelling) and use the ```macos.armv8.*``` profiles.
+```Macos/armv8/<BuildType>``` and select the ```macos.arm64.*``` profiles. The
+two spellings are deliberate: the path level carries conan's `settings.arch`
+value (```armv8```), while the profile files are named after the architecture as
+the pipeline refers to it (```macos.arm64```).
 
 
 ## Building (original)
