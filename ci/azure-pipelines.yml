@@ -198,7 +198,11 @@ stages:
         variables:
           qt-version: '6.8.8'
           qt-artifact-name: 'qt-mac-ios-6.8.8'
-          qt-artifact-version: '1.0.0'
+          # 1.0.1 repackages the iOS kit so its CMake config files and its
+          # libraries agree; 1.0.0 shipped *Targets-debug.cmake referencing
+          # *_debug.a files it had stripped, which aborted find_package(Qt6)
+          # for every CMAKE_BUILD_TYPE.
+          qt-artifact-version: '1.0.1'
           xcode-version: '26.2'
           projectFile: ${{ variables.projectFile }}
           CONAN_USER_HOME: $(Pipeline.Workspace)
