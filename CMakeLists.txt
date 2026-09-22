@@ -49,6 +49,17 @@ option(WITH_GSTREAMER "Build with GStreamer support for Jingle" OFF)
 option(WITH_QCA "Build with QCA for OMEMO or encrypted file sharing" ${Qca-qt${QT_VERSION_MAJOR}_FOUND})
 option(ENABLE_ASAN "Build with address sanitizer" OFF)
 
+# VERSION/SOVERSION make the install tree a chain of symlinks:
+#   libQXmppQt6.dylib -> libQXmppQt6.4.dylib -> libQXmppQt6.1.6.1.dylib
+# The Azure Pipelines CopyFiles task (azure-pipelines-task-lib) cannot stage a
+# symlink whose target is itself a symlink; it takes the last link for a
+# directory and the macOS job dies with
+#   ENOTDIR: not a directory, scandir '.../lib/libQXmppQt6.4.dylib'
+# Conan consumers link by library name and never read the SONAME, so CI asks for
+# a single unversioned library instead (see ci/azure-pipelines.yml). Default is
+# OFF so a normal build keeps the usual versioned layout.
+option(BUILD_UNVERSIONED_LIBRARY "Install one unversioned shared library instead of the versioned symlink chain" OFF)
+
 set(QXMPP_TARGET QXmppQt${QT_VERSION_MAJOR})
 set(QXMPPOMEMO_TARGET QXmppOmemoQt${QT_VERSION_MAJOR})
 

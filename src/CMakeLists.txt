@@ -289,10 +289,15 @@ else()
 endif()
 
 set_target_properties(${QXMPP_TARGET} PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${SO_VERSION}
     EXPORT_NAME QXmpp
 )
+
+if(NOT BUILD_UNVERSIONED_LIBRARY)
+    set_target_properties(${QXMPP_TARGET} PROPERTIES
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${SO_VERSION}
+    )
+endif()
 
 target_include_directories(${QXMPP_TARGET}
     PUBLIC
