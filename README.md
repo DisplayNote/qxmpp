@@ -91,7 +91,8 @@ QXmpp is released under the terms of the GNU Lesser General Public License, vers
     ```
 
 **NOTE**: the install prefix is the layout `conanfile.py` packages from —
-`<Platform>/<BuildType>`, and `<Platform>/<arch>/<BuildType>` on macOS, relative
+`<Platform>/<BuildType>`, and `<Platform>/<arch>/<BuildType>` on macOS and Android
+(e.g. `Android/armv8/Release` for arm64-v8a), relative
 to the folder `conan export-pkg` runs in. The recipe now raises if that folder is
 missing rather than publishing an empty package, so keep the prefix in step with it.
 
