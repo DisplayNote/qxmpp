@@ -15,11 +15,12 @@ class QxmppConan(ConanFile):
     def _source_folder(self):
         # common/build-unix.yml@ci and windows-x86_64/build.yml@ci stage each
         # build under <Platform>/<BuildType> at the root of the build-folder
-        # artifact. macOS goes one level deeper, <Platform>/<arch>/<BuildType>,
-        # so the x86_64 and arm64 stages do not overwrite each other in that
-        # shared artifact. The arch level carries conan's own settings.arch
-        # value ('x86_64', 'armv8'), so it drops in with no translation table.
-        if self.settings.os == 'Macos':
+        # artifact. macOS and Android go one level deeper,
+        # <Platform>/<arch>/<BuildType>, so their per-arch stages do not
+        # overwrite each other in that shared artifact. The arch level carries
+        # conan's own settings.arch value ('x86_64', 'armv8', 'armv7'), so it
+        # drops in with no translation table.
+        if self.settings.os in ('Macos', 'Android'):
             return os.path.join(str(self.settings.os),
                                 str(self.settings.arch),
                                 str(self.settings.build_type))

@@ -21,10 +21,13 @@ parameters:
     default:
       - name: android_arm64_v8a
         abi: arm64-v8a
+        conanArch: armv8
       - name: android_armv7
         abi: armeabi-v7a
+        conanArch: armv7
       - name: android_x86_64
         abi: x86_64
+        conanArch: x86_64
 
 resources:
   repositories:
@@ -308,11 +311,16 @@ stages:
               parameters:
                 version: '28.2.13676358'
 
+            # The three ABI stages run in parallel and publish into the same
+            # 'build-folder' artifact, so a shared Android/<build type> folder
+            # let the last upload win and shipped one ABI's libQXmppQt6.so in
+            # every Android package. Stage under Android/<conan arch>/<build
+            # type> instead, same convention as the macOS stages.
             - template: common/build-unix.yml@ci
               parameters:
                 spec: android-clang
                 qtKit: gcc_64
-                platform: Android
+                platform: Android/${{ arch.conanArch }}
                 buildType: Debug
                 buildSystem: cmake
                 cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
@@ -328,7 +336,7 @@ stages:
               parameters:
                 spec: android-clang
                 qtKit: gcc_64
-                platform: Android
+                platform: Android/${{ arch.conanArch }}
                 buildType: Release
                 buildSystem: cmake
                 cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/${{ variables.architecture }}/lib/cmake/Qt6/qt.toolchain.cmake'
