@@ -36,6 +36,13 @@ resources:
       endpoint: "DisplayNote through PAT."
       name: DisplayNote/qt-conan-ci
       ref: refs/tags/2.4.0
+    # AI Security Roadmap 4.1 — shared dependency-scanning (OSV-Scanner + Grype)
+    # templates. v1.1.0 adds the dependency scan; v1.1.2 is the current tag.
+    - repository: dn-templates
+      type: github
+      endpoint: "DisplayNote through PAT."
+      name: DisplayNote/dn-pipeline-templates
+      ref: refs/tags/v1.1.2
 
 variables:
   - group: montage-client-environment-variables
@@ -365,9 +372,22 @@ stages:
         $(cmakeCommonArgs)
         -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2022_64
 
+  # Declares dependsOn: [] so it runs in parallel with the builds. Kept after the
+  # build stages: common/setup.yml@ci declares no dependsOn, so it implicitly
+  # depends on whichever stage is listed before it.
+  # QXmpp is built here against Qt only (QCA, OMEMO and GStreamer stay off, see
+  # cmakeCommonArgs); Qt is supplied by qt-conan-ci and scanned in the products
+  # that ship it. There are no lockfiles or manifests for OSV-Scanner to read, so
+  # allowNoPackages keeps that from failing the gate. The scan still catches any
+  # Conan requirement added later.
+  - template: dependency-scan-stage.yml@dn-templates
+    parameters:
+      failOnFindings: false      # audit mode — remove to make the gate blocking
+      allowNoPackages: true
+
   - template: common/deploy-develop.yml@ci
     parameters:
       conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
-      stageDependencies: ['setup', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
+      stageDependencies: ['DependencyScan', 'setup', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
       conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'macos.arm64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
