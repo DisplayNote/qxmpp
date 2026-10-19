@@ -51,8 +51,11 @@ variables:
   # BUILD_UNVERSIONED_LIBRARY keeps the install tree free of the
   # libQXmppQt6.dylib -> libQXmppQt6.4.dylib -> libQXmppQt6.1.6.1.dylib symlink
   # chain, which the CopyFiles task in common/build-unix.yml@ci cannot stage.
+  # WITH_QCA=OFF keeps the build Qt-only: CMakeLists.txt turns QCA on whenever an
+  # agent happens to have it installed, and the dependency scan below assumes
+  # there is nothing but Qt to inventory.
   - name: cmakeCommonArgs
-    value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DBUILD_UNVERSIONED_LIBRARY=ON'
+    value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DBUILD_UNVERSIONED_LIBRARY=ON -DWITH_QCA=OFF'
 
 stages:
   - template: common/setup.yml@ci
