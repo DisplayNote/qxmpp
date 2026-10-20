@@ -246,6 +246,11 @@ stages:
           # publishing an empty package). A debug build does not need debug Qt
           # libraries - it compiles our own objects with debug info and links the
           # release Qt, which is what qmake already does for the other libraries.
+          #
+          # BUILD_SHARED=OFF (overriding cmakeCommonArgs) builds a static
+          # libQXmppQt6.a, like the static Qt for iOS kit it links against. A
+          # shared build ships libQXmppQt6.dylib, which the qmake-built apps link
+          # by @rpath but never embed, so dyld kills them at launch.
           - template: common/build-unix.yml@ci
             parameters:
               spec: macx-ios-clang
@@ -257,6 +262,7 @@ stages:
               cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/ios/lib/cmake/Qt6/qt.toolchain.cmake'
               args: >-
                 $(cmakeCommonArgs)
+                -DBUILD_SHARED=OFF
                 -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/ios
                 -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
                 -DCMAKE_OSX_ARCHITECTURES=arm64
@@ -274,6 +280,7 @@ stages:
               cmakeToolchainFile: '$(Build.BinariesDirectory)/Qt/$(qt-version)/ios/lib/cmake/Qt6/qt.toolchain.cmake'
               args: >-
                 $(cmakeCommonArgs)
+                -DBUILD_SHARED=OFF
                 -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/ios
                 -DQT_HOST_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/macos
                 -DCMAKE_OSX_ARCHITECTURES=arm64
