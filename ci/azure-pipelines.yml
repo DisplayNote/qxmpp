@@ -35,7 +35,10 @@ resources:
       type: github
       endpoint: "DisplayNote through PAT."
       name: DisplayNote/qt-conan-ci
-      ref: refs/tags/2.4.0
+      # VALIDATION BRANCH - do not merge as is (roadmap 2.23). Points at the
+      # unreleased coverage template; before merging, pin the qt-conan-ci tag that
+      # ships it.
+      ref: refs/heads/feature/coverage-template
     # AI Security Roadmap 4.1 — shared dependency-scanning (OSV-Scanner + Grype)
     # templates. v1.1.0 adds the dependency scan; v1.1.2 is the current tag.
     - repository: dn-templates
@@ -57,12 +60,43 @@ variables:
   - name: cmakeCommonArgs
     value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DBUILD_UNVERSIONED_LIBRARY=ON -DWITH_QCA=OFF'
 
+# Stage order: DependencyScan -> setup (VERSION) -> tests_coverage -> build
+# stages -> deploy. Every dependency is explicit. (No SecretScan stage here.)
 stages:
+  # QXmpp is built here against Qt only (QCA, OMEMO and GStreamer stay off, see
+  # cmakeCommonArgs); Qt is supplied by qt-conan-ci and scanned in the products
+  # that ship it. There are no lockfiles or manifests for OSV-Scanner to read, so
+  # allowNoPackages keeps that from failing the gate. The scan still catches any
+  # Conan requirement added later.
+  - template: dependency-scan-stage.yml@dn-templates
+    parameters:
+      failOnFindings: false      # audit mode — remove to make the gate blocking
+      allowNoPackages: true
+
   - template: common/setup.yml@ci
+    parameters:
+      dependsOn: [DependencyScan]
+
+  # Roadmap 2.23 — QXmpp's own test suites (ctest, BUILD_TESTS=ON) under
+  # OpenCppCoverage (Windows, Debug). Shared library, like the product build, so
+  # every compiled line counts; its DLL is in the build's src directory.
+  # blocking: false is audit mode: failing tests or coverage below target are
+  # warnings and the builds still run; true makes them stop the builds and the
+  # deploy.
+  - template: windows-x86_64/coverage.yml@ci
+    parameters:
+      enabled: true
+      blocking: false
+      projectFile: ${{ variables.projectFile }}
+      buildSystem: cmake
+      cmakeGenerator: 'Ninja'
+      testConfigArgs: '-DBUILD_SHARED=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DWITH_QCA=OFF'
+      ctest: true
+      extraPathDirs: ['$(coverageBuildDir)\src']
 
   - stage: macos_x86_64
-    dependsOn: [setup]
-    condition: succeeded('setup')
+    dependsOn: [setup, tests_coverage]
+    condition: succeeded()
     displayName: 'BUILD | macos_x86_64'
     jobs:
       - job: macos_x86_64
@@ -133,8 +167,8 @@ stages:
             displayName: 'PUBLISH | Publish results'
 
   - stage: macos_arm64
-    dependsOn: [setup]
-    condition: succeeded('setup')
+    dependsOn: [setup, tests_coverage]
+    condition: succeeded()
     displayName: 'BUILD | macos_arm64'
     jobs:
       - job: macos_arm64
@@ -202,8 +236,8 @@ stages:
             displayName: 'PUBLISH | Publish results'
 
   - stage: ios_arm64
-    dependsOn: [setup]
-    condition: succeeded('setup')
+    dependsOn: [setup, tests_coverage]
+    condition: succeeded()
     displayName: 'BUILD | ios_arm64'
     jobs:
       - job: ios_arm64
@@ -295,8 +329,8 @@ stages:
 
   - ${{ each arch in parameters.androidArchitectures }}:
     - stage: ${{ replace(arch.name, '-', '_') }}
-      dependsOn: [setup]
-      condition: succeeded('setup')
+      dependsOn: [setup, tests_coverage]
+      condition: succeeded()
       displayName: 'BUILD | ${{ arch.name }}'
       jobs:
         - job: ${{ replace(arch.name, '-', '_') }}
@@ -381,23 +415,11 @@ stages:
       cmakeArgsRelease: >-
         $(cmakeCommonArgs)
         -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2022_64
-
-  # Declares dependsOn: [] so it runs in parallel with the builds. Kept after the
-  # build stages: common/setup.yml@ci declares no dependsOn, so it implicitly
-  # depends on whichever stage is listed before it.
-  # QXmpp is built here against Qt only (QCA, OMEMO and GStreamer stay off, see
-  # cmakeCommonArgs); Qt is supplied by qt-conan-ci and scanned in the products
-  # that ship it. There are no lockfiles or manifests for OSV-Scanner to read, so
-  # allowNoPackages keeps that from failing the gate. The scan still catches any
-  # Conan requirement added later.
-  - template: dependency-scan-stage.yml@dn-templates
-    parameters:
-      failOnFindings: false      # audit mode — remove to make the gate blocking
-      allowNoPackages: true
+      dependsOn: [setup, tests_coverage]
 
   - template: common/deploy-develop.yml@ci
     parameters:
       conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
-      stageDependencies: ['DependencyScan', 'setup', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
+      stageDependencies: ['DependencyScan', 'setup', 'tests_coverage', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
       conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'macos.arm64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
