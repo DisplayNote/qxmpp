@@ -35,10 +35,8 @@ resources:
       type: github
       endpoint: "DisplayNote through PAT."
       name: DisplayNote/qt-conan-ci
-      # VALIDATION BRANCH - do not merge as is (roadmap 2.23). Points at the
-      # unreleased coverage template; before merging, pin the qt-conan-ci tag that
-      # ships it.
-      ref: refs/heads/feature/coverage-template
+      # 2.5.0 adds the tests + coverage stage (roadmap 2.23).
+      ref: refs/tags/2.5.0
     # AI Security Roadmap 4.1 — shared dependency-scanning (OSV-Scanner + Grype)
     # templates. v1.1.0 adds the dependency scan; v1.1.2 is the current tag.
     - repository: dn-templates
