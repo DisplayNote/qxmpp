@@ -9,3 +9,6 @@ CMakeLists.txt.*
 *.kdev4
 support-chat-avatar.png
 install/
+
+# dn_logscrub placeholder maps hold the ORIGINAL values — never commit them
+*.dnmap
