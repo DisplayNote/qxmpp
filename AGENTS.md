@@ -8,8 +8,10 @@
   publishes it as the Conan package `qxmpp` (user/channel `@dn/…`, see
   [docs/runbooks/release.md](docs/runbooks/release.md)); Montage links it for XMPP signalling.
 - Stack on `1.6`: C++17, CMake ≥ 3.16, Qt 5.15 or Qt 6 (`Core`, `Network`, `Xml`); DisplayNote
-  builds against Qt 6.8.8 (`ci/azure-pipelines.yml`). Optional QCA, libomemo-c (OMEMO) and
-  GStreamer (Jingle calls), all off in DisplayNote builds. `project(qxmpp VERSION 1.6.1)` in
+  builds against Qt 6.8.8 (`ci/azure-pipelines.yml`). Optional libomemo-c (OMEMO) and GStreamer
+  (Jingle calls) are off in DisplayNote builds (`BUILD_OMEMO` / `WITH_GSTREAMER` default `OFF`);
+  optional QCA is auto-detected (`WITH_QCA` defaults to whether `Qca-qt6` is found,
+  `CMakeLists.txt:49`), so an agent with QCA installed builds it in. `project(qxmpp VERSION 1.6.1)` in
   `CMakeLists.txt`; DisplayNote release tags `v1.6.2`–`v1.6.5`.
 - **`1.6` is the DisplayNote branch.** It is upstream 1.6.1 plus DisplayNote commits
   (`git log --oneline origin/master..origin/1.6`): `conanfile.py`, `ci/azure-pipelines.yml`
