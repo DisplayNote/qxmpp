@@ -32,8 +32,8 @@ resumption changes.
 ```bash
 cmake -B build -DBUILD_TESTS=ON -DBUILD_INTERNAL_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
-cd build && ctest --output-on-failure                 # all
-cd build && ctest --output-on-failure -R qxmppsasl    # one test
+(cd build && ctest --output-on-failure)                 # all
+(cd build && ctest --output-on-failure -R qxmppsasl)    # one test
 ```
 
 ## Add a test
