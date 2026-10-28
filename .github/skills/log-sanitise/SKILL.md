@@ -86,7 +86,11 @@ Azure connection strings), any `password= / token= / secret= / *_key=` value,
 OAuth `code=`/`state=`/`nonce=` in URLs — also when the value is on the
 following line(s): pretty-printed JSON (`"token":` then the value), YAML
 (`password:` then an indented value, or a `|`/`>` block scalar, every line of
-it) and a folded `Authorization:` header. Keys that only describe a secret
+it) and a folded `Authorization:` header. XMPP stanzas (QXmpp `SENT`/`RECEIVED`):
+SASL payloads (`<auth>`, `<challenge>`, `<response>`, `<success>`), `<password>`
+elements, the `jabber:iq:auth` login `<digest>` and HTTP-upload `<header>` values whose name carries a credential
+(`Authorization`, `Cookie`, `X-Auth-Token`, …) — only the
+element content, so the stanza stays readable. Keys that only describe a secret
 (`token_count`, `session_timeout`, `token_expires_in`, `signature_algorithm`)
 keep their value.
 Pseudonymised consistently (`<TAG_n>`): e-mail addresses, quoted or keyed
@@ -108,7 +112,12 @@ Not caught — check for these yourself: a person's name in free text
 (`Welcome, Jane Doe`), a customer's hostname when its domain was not passed
 with `--domain`, and an account in a Windows domain whose name is one of the
 system's own words (`HOST\user`, `SYSTEM\user`), which are kept as system
-principals.
+principals. An XMPP credential element (`<auth>`, `<password>`, an upload
+`<header>`, …) is redacted only when its payload starts on the line of its
+opening tag (a line cut short before the closing tag is still redacted): a
+pretty-printed stanza that puts the payload on a line of its own passes through,
+and so does any stanza in a JSON log whose serialiser escapes `<`, `>` or `/`
+(`\u003c`/`\u003e` or `<\/`: Go, .NET `System.Text.Json`).
 
 ## Where the Claude Code guard does not reach
 

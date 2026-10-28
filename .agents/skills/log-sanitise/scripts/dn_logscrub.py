@@ -53,7 +53,7 @@ import re
 import sys
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-__version__ = "1.1.0"
+__version__ = "1.1.2"
 MARKER = "dn_logscrub"
 MARKER_RE = re.compile(r"^#\s*dn_logscrub\s+v\d+\.\d+")
 
@@ -111,8 +111,53 @@ _WIN_SYSTEM_DOMAINS = (r"(?i:NT|AUTHORITY|BUILTIN|SERVICE|APPPOOL|MANAGER|HOST|S
                        r"SOFTWARE|HARDWARE|SAM|SECURITY|NT AUTHORITY|NT SERVICE|IIS APPPOOL)")
 _WIN_SYSTEM_USERS = r"(?i:SYSTEM|LOCAL SERVICE|NETWORK SERVICE|Administrators|Users|Guests)"
 
+# The text content of an XML element, up to its closing tag: plain text and
+# CDATA sections in any mix (`<password><![CDATA[…]]></password>` stopped at
+# the `<!` and went out verbatim). Never empty. Unrolled, and a CDATA body
+# ends at its first `]]>` — a lazy `.*?` could stretch over the next section,
+# and a line with no closing tag then backtracked exponentially.
+# A line cut short before the closing tag (logcat truncates at ~4 KB) runs to
+# its end: that can only over-redact. The line ending itself is never taken,
+# and an element with nothing after it on the line is left alone. The cut can
+# fall inside a delimiter too — an unclosed CDATA section, or a closing tag
+# down to its `<` — so that tail goes with the text. The CDATA tail stops at
+# any `]]>`, which keeps a failed match linear.
+_CDATA_BODY = r"[^\]\r\n]*(?:\](?!\]>)[^\]\r\n]*)*"
+_XML_TEXT = (r"(?!</|\s*$)([^<\r\n]*(?:<!\[CDATA\[" + _CDATA_BODY + r"\]\]>[^<\r\n]*)*"
+             r"(?:(?=</)|(?:<!\[CDATA\[" + _CDATA_BODY + r"|<[^>\r\n]*)?(?=\r?$)))")
+
 RULES: List[Tuple[str, "re.Pattern[str]", str]] = [
     # --- secrets (redact) ---------------------------------------------------
+    # XMPP credentials are XML element content (QXmpp SENT/RECEIVED lines):
+    # a SASL payload is bare base64 with no `password=` key, often shorter
+    # than the 32 characters the entropy rule needs, and a longer SCRAM one
+    # became a reversible <TOKEN_n> — the proof itself written to the .dnmap.
+    # Only the content goes; the tags stay so the stanza is still readable.
+    # First, so a token inside `<auth>` is one redaction, and SECRET_KV never
+    # sees the `sid=` in a Cookie header and eats the closing tags with it.
+    # The whole element name, which ends where the tag does or an attribute
+    # starts: `<response-code>`, `<response.code>` and `<auth:status>` (`auth`
+    # there is a prefix) in any XML log lost their content.
+    ("XMPP_AUTH", re.compile(r"(?i)(<(?:[\w-]+:)?(?:auth|response|challenge|success|initial-response|"
+                             r"additional-data|password)(?=[\s/>])[^>]*(?<!/)>)" + _XML_TEXT), "keyed_redact"),
+    # HTTP File Upload (XEP-0363) carries the upload headers as elements.
+    # A stanza inside a JSON log message has its quotes escaped (`name=\"…\"`),
+    # once or more, and the header went out verbatim.
+    # The spec allows only Authorization, Cookie and Expires, but a server's
+    # slot can still hand out `X-Auth-Token` or `X-Authorization`: any name
+    # that says it carries a credential. A session is replayable, as SECRET_KV
+    # already holds; not `sid`, which as a fragment also matches `Inside`. `name` must be the whole attribute
+    # name: `data-name="Cookie"` is not the header's name.
+    ("XMPP_AUTH", re.compile(r"(?i)(<(?:[\w-]+:)?header(?=[\s/>])[^>]*(?<![\w:.-])name\s*=\s*\\*[\"']"
+                             r"[\w-]*(?:authorization|cookie|token|api-?key|session|secret)[\w-]*\\*[\"'][^>]*>)"
+                             + _XML_TEXT),
+     "keyed_redact"),
+    # Non-SASL login (XEP-0078, `jabber:iq:auth`) sends SHA1(stream id +
+    # password) as `<digest>`; the stream id is in the same log, so the
+    # password can be cracked offline. Its own category so the prefilter can
+    # require `jabber:iq:auth` on the line: elsewhere a `<digest>` is a file
+    # hash (a container manifest's `sha256:…`), which is kept.
+    ("XMPP_DIGEST", re.compile(r"(?i)(<(?:[\w-]+:)?digest(?=[\s/>])[^>]*(?<!/)>)" + _XML_TEXT), "keyed_redact"),
     # No per-segment floor: `{}` encodes to `e30`, so a valid signed token can
     # have a three-character payload and was slipping past.
     ("JWT", re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"), "redact"),
@@ -341,7 +386,7 @@ RULES: List[Tuple[str, "re.Pattern[str]", str]] = [
 # signal — the raw-log guard lets a marked file through — so a run must never
 # be able to stamp it on output from which secret rules were switched off.
 UNDISABLEABLE = {"JWT", "AUTH_HEADER", "BEARER", "URL_CREDENTIALS", "AWS_KEY", "GITHUB_TOKEN",
-                 "SLACK_TOKEN", "OPENAI_KEY", "GOOGLE_KEY", "AZURE_CONN", "SECRET_KV", "PRIVATE_KEY", "OAUTH"}
+                 "SLACK_TOKEN", "OPENAI_KEY", "GOOGLE_KEY", "AZURE_CONN", "SECRET_KV", "PRIVATE_KEY", "OAUTH", "XMPP_AUTH", "XMPP_DIGEST"}
 
 # IPs that are never sensitive and are useful verbatim while debugging.
 _IPV4_KEEP = re.compile(r"^(?:0\.0\.0\.0|127\.\d+\.\d+\.\d+|255\.255\.255\.255|224\.0\.0\.\d+|239\.255\.255\.250)(?::\d+)?$")
@@ -437,6 +482,9 @@ def _keyed(*words):
 
 
 _PRE = {
+    # `<` or a namespace prefix's `:` right before the element name.
+    "XMPP_AUTH": _rx(r"(?i)[<:](?:auth|response|challenge|success|initial-response|additional-data|password|header)(?=[\s/>])"),
+    "XMPP_DIGEST": lambda line, low: "jabber:iq:auth" in low and "digest" in low,
     "JWT": _has("eyJ"),
     "AUTH_HEADER": _has_low("authoriz"),
     "BEARER": _has_low("bearer"),
@@ -711,7 +759,11 @@ class Scrubber:
             if rep == m.group(0):
                 carry(m.start(), m.end(), outlen)
             else:
-                spans.append((outlen, outlen + len(rep)))
+                # A redaction keeps its key, or the whole opening tag of an
+                # XMPP element: only what follows is ours. Counting the tag
+                # too made the keyed rules skip a name in its attributes.
+                lead = len(m.group(1)) if mode == "keyed_redact" and rep.startswith(m.group(1)) else 0
+                spans.append((outlen + lead, outlen + len(rep)))
             out.append(rep)
             outlen += len(rep)
             pos = m.end()
@@ -1370,15 +1422,26 @@ def run_cli(argv: Optional[List[str]] = None) -> int:
         else:
             write = out_fh.write
 
+        # The last character written, so the trailer always starts a line of
+        # its own: a source whose last line has no newline (Azure DevOps build
+        # logs end that way) glued the trailer onto it, and the guard rightly
+        # refused the clean copy as raw content after the trailer.
+        last = ["\n"]
+
+        def emit(chunk: str) -> None:
+            if chunk:
+                last[0] = chunk[-1]
+            write(chunk)
+
         try:
             write(scrubber.header(name, streaming=True))
             try:
-                scrubber.scrub_stream(src, write)
+                scrubber.scrub_stream(src, emit)
             except KeyboardInterrupt:
                 interrupted = True
             file_stats = {k: v - before.get(k, 0) for k, v in scrubber.stats.items() if v - before.get(k, 0)}
             # A line cut off mid-write must not swallow the trailer onto it.
-            write(("\n" if interrupted else "") + scrubber.trailer(file_stats, interrupted=interrupted))
+            write(("\n" if interrupted or last[0] != "\n" else "") + scrubber.trailer(file_stats, interrupted=interrupted))
         except BrokenPipeError:
             # The reader went away (`… | head`). Nothing more can be written,
             # and the partial stream it read was scrubbed line by line.
