@@ -83,9 +83,10 @@ reach). After `<enabled/>`, `<resumed/>` or `<failed/>`, `sessionStarted` is for
 (lines 758–759, 771–772, 797–798) so `isConnected()` (line 282) is true.
 
 **Reconnect** (`src/client/QXmppClient.cpp`, DisplayNote): `getNextReconnectTime()`
-(lines 69–98) returns 5–15 s for the first 5 tries, 15–25 s up to 10, 35–45 s up to 15 and
-50–70 s afterwards (random jitter from `QRandomGenerator`) and prints the try count and delay
-with `qDebug()` (lines 94–95). `_q_streamDisconnected()` (lines 963–974) restarts the
+(lines 69–98) returns 5–14 s for the first 5 tries, 15–24 s up to 10, 35–44 s up to 15 and
+50–69 s afterwards (random jitter from `QRandomGenerator::bounded()`, whose upper bound is
+exclusive, so the 5–15 … 50–70 s upper values in the code comment are never produced) and
+prints the try count and delay with `qDebug()` (lines 94–95). `_q_streamDisconnected()` (lines 963–974) restarts the
 reconnection timer when it is not running, auto-reconnect is enabled, no resource conflict was
 received and the client presence is still `Available` (it also prints a `qDebug()` line,
 971); `disconnectFromServer()` sets presence `Unavailable` first, so an explicit logout does not
