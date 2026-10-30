@@ -68,7 +68,6 @@ stages:
   # Conan requirement added later.
   - template: dependency-scan-stage.yml@dn-templates
     parameters:
-      failOnFindings: false      # audit mode — remove to make the gate blocking
       allowNoPackages: true
 
   - template: common/setup.yml@ci
