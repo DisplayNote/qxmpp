@@ -42,6 +42,16 @@ Repo-specific:
 - Integration tests read real account credentials from `QXMPP_TESTS_JID` /
   `QXMPP_TESTS_PASSWORD` (`tests/IntegrationTesting.h`); never commit them.
 
+This repo also carries a mandatory `code-review` agent skill (AI Security
+Roadmap §4.2) with two identical copies — `.agents/skills/code-review/SKILL.md`
+(Codex, Kiro, and similar agents) and `.github/skills/code-review/SKILL.md`
+(GitHub Copilot) — that runs a pre-PR review and requires every AI review to
+end with a `Security:` line covering injection, hardcoded secrets, insecure
+direct object references, and CVE-affected dependencies. Both copies are
+generated from the `displaynote-engineering` plugin's canonical skill; do not
+hand-edit them; land changes in the plugin and re-sync with `/sync-skill
+code-review`.
+
 ## Repository map
 
 ```text
@@ -61,7 +71,8 @@ cmake/          Find modules (GStreamer, GLib) and legacy QXmpp package config
 utils/          upstream git-hook helper (clang-format pre-commit) and logo rendering
 .github/        upstream workflows and PR template; DisplayNote-vendored skills (skills/) and
                 Copilot instructions (instructions/)
-.agents/        DisplayNote-vendored agent skills (log-sanitise), synced from displaynote-engineering
+.agents/        DisplayNote-vendored agent skills (code-review, log-sanitise), synced from
+                displaynote-engineering
 ```
 
 ## Run / build / test / lint

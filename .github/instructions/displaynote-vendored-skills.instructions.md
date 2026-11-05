@@ -1,5 +1,5 @@
 ---
-applyTo: ".agents/skills/log-sanitise/**,.github/skills/log-sanitise/**"
+applyTo: ".agents/skills/code-review/**,.github/skills/code-review/**,.agents/skills/log-sanitise/**,.github/skills/log-sanitise/**"
 ---
 
 # Vendored DisplayNote skills
