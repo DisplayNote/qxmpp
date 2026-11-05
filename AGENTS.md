@@ -66,11 +66,16 @@ examples/       small upstream example programs (example_0_connected … example
 ci/             DisplayNote Azure Pipelines definition (azure-pipelines.yml)
 conanfile.py    DisplayNote Conan 1.x recipe that packages the CI-staged install tree
 doc/            upstream Doxygen sources and XEP/DOAP metadata (upstream material — do not edit)
-docs/           DisplayNote AI-agent docs (architecture, modules, runbooks, glossary)
+docs/           DisplayNote AI-agent docs (architecture, modules, runbooks, glossary);
+                docs/ai/prompts/docs-maintenance.md is the docs-sync agent's prompt
 cmake/          Find modules (GStreamer, GLib) and legacy QXmpp package config
 utils/          upstream git-hook helper (clang-format pre-commit) and logo rendering
-.github/        upstream workflows and PR template; DisplayNote-vendored skills (skills/) and
-                Copilot instructions (instructions/)
+tools/docs-sync/ DisplayNote docs-sync pack (roadmap 2.30): agent runner, PR opener,
+                docs_freshness.py coverage/freshness metric; see its README.md
+.docs-sync.json docs-sync manifest: module -> doc (docs/modules/*.md) -> code paths (src/*)
+.github/        upstream workflows (tests.yml, push-docs.yml) and PR template; DisplayNote
+                docs-sync workflows (workflows/docs-sync.yml, docs-catchup.yml),
+                vendored skills (skills/) and Copilot instructions (instructions/)
 .agents/        DisplayNote-vendored agent skills (code-review, log-sanitise), synced from
                 displaynote-engineering
 ```
@@ -201,4 +206,4 @@ See [docs/glossary.md](docs/glossary.md).
 | GStreamer | Audio/video for Jingle calls | `WITH_GSTREAMER`, `cmake/modules/FindGStreamer.cmake` |
 | Azure Pipelines + `DisplayNote/qt-conan-ci` 2.4.0 | DisplayNote CI: builds every platform and deploys the Conan package | `ci/azure-pipelines.yml`, `conanfile.py`; [docs/runbooks/release.md](docs/runbooks/release.md) |
 | Conan (1.x) | Package format consumed by Montage | `conanfile.py` (`from conans import ConanFile`) |
-| GitHub Actions | Upstream workflows (`.github/workflows/tests.yml`, `push-docs.yml`); not registered on `DisplayNote/qxmpp` — only Copilot code review runs there | — |
+| GitHub Actions | Upstream workflows (`.github/workflows/tests.yml`, `push-docs.yml`); not registered on `DisplayNote/qxmpp` — only Copilot code review runs there. DisplayNote's docs-sync workflows (`docs-sync.yml`, `docs-catchup.yml`, roadmap 2.30) live on `1.6` but only run once they are on the default branch (`master`) or `1.6` becomes the default, and Actions is enabled for the fork; they need the `COPILOT_PAT` secret | [tools/docs-sync/README.md](tools/docs-sync/README.md) |
