@@ -53,7 +53,7 @@ import re
 import sys
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-__version__ = "1.1.2"
+__version__ = "1.2.0"
 MARKER = "dn_logscrub"
 MARKER_RE = re.compile(r"^#\s*dn_logscrub\s+v\d+\.\d+")
 
@@ -301,6 +301,20 @@ RULES: List[Tuple[str, "re.Pattern[str]", str]] = [
     ("ID", re.compile(r"(?i)\b(serial(?:[ _-]?(?:no|number|#))?\s*(?:[:=]\s*|\s))"
                       r"((?=[A-Za-z0-9-]*\d)[A-Za-z0-9][A-Za-z0-9-]{5,40})\b"),
      "keyed"),
+    # A hardware address under a key that says it is one. The mDNS `bs` TXT
+    # record (chromecast-sdk) writes 12 bare hex digits, which the MAC rule
+    # below misses; bare, without the key, that shape is a short git SHA.
+    # Key: may end a longer field name (`wifi_bssid`, `deviceMac`) or hold a
+    # space (`MAC address:`), but `jobs=` is not `bs` — a letter before it
+    # is allowed only where a camelCase hump begins. A quote before the value,
+    # JSON-escaped or not, stays with the key.
+    # Value: bare or separated, so one address gets one placeholder (before
+    # the ID rule, which would take `mac=a1:b2:…`); punctuation ends it.
+    ("MAC", re.compile(
+        r"((?:(?<![A-Za-z0-9])(?i:bs|bssid|mac(?:[ _-]?addr(?:ess)?)?|hw[ _-]?addr(?:ess)?)"
+        r"|(?<=[a-z])(?:(?:Mac|MAC)(?:[ _-]?(?:[Aa]ddr(?:ess)?|ADDR(?:ESS)?))?|Bssid|BSSID|Hw[ _-]?[Aa]ddr(?:ess)?))"
+        r"\s*\\*[\"']?\s*[=:]\s*\\*[\"']?)"
+        r"((?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}(?![0-9A-Za-z:-])|[0-9A-Fa-f]{12}(?![0-9A-Za-z]))"), "keyed"),
     ("ID", re.compile(
         r"(?i)\b((?:serial(?:[_-]?n(?:o|umber))?|device[_-]?id|android[_-]?id|hw[_-]?id|hardware[_-]?id|imei|udid|uuid|"
         r"machine[_-]?id|installation[_-]?id|install[_-]?id|client[_-]?id|user[_-]?id|uid|account[_-]?id|tenant[_-]?id|"
@@ -481,6 +495,8 @@ def _keyed(*words):
     return lambda line, low: ("=" in line or ":" in line) and any(w in low for w in words)
 
 
+_MAC_SEP_PRE = _rx(r"[0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-]")
+
 _PRE = {
     # `<` or a namespace prefix's `:` right before the element name.
     "XMPP_AUTH": _rx(r"(?i)[<:](?:auth|response|challenge|success|initial-response|additional-data|password|header)(?=[\s/>])"),
@@ -507,7 +523,8 @@ _PRE = {
     "SSID": _has_low("ssid", "wifi", "network"),
     "ID": lambda line, low: "serial" in low or "]: [" in line or _keyed(
         "pin", "code", "otp", "password", "id", "imei", "uuid", "session", "mac", "address")(line, low),
-    "MAC": _rx(r"[0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-]"),
+    # Separated, or 12 bare digits under a key (`bssid` contains `bs`).
+    "MAC": lambda line, low: _MAC_SEP_PRE(line, low) or _keyed("bs", "mac", "hwaddr", "hw_addr", "hw-addr", "hw addr")(line, low),
     "IPV6": lambda line, low: "::" in line or line.count(":") >= 7,
     "IPV4": _rx(r"\d\.\d{1,3}\.\d"),
     "UUID": _rx(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-"),
@@ -613,6 +630,9 @@ class Scrubber:
     def _pseudo(self, cat: str, value: str) -> str:
         bucket = self.map.setdefault(cat, {})
         key = value.lower() if cat in ("EMAIL", "INTERNAL_HOST", "DOMAIN", "MAC", "UUID", "LONG_HEX") else value
+        if cat == "MAC":
+            # `a1b2c3d4e5f6` and `A1:B2:C3:D4:E5:F6` are one address.
+            key = key.replace(":", "").replace("-", "")
         ph = bucket.get(key)
         if ph is None:
             ph = f"<{cat}_{len(bucket) + 1}>"
