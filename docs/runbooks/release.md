@@ -22,9 +22,19 @@ from the `azure-pipelines` app):
 - **Triggers**: every pushed tag (`trigger: tags: include: '*'`) and every non-draft PR to any
   branch, except PRs that only touch `doc`, `README.md`, `COPYING` or `LICENSES`. Plain branch
   pushes do not trigger it.
-- **Templates**: repository resource `ci` = `DisplayNote/qt-conan-ci` at tag `2.4.0`, variable
-  group `montage-client-environment-variables`. Stages and templates used:
-  - `common/setup.yml@ci` (the `setup` stage; its check run is `VERSION ReadVersion`);
+- **Templates**: repository resource `ci` = `DisplayNote/qt-conan-ci` at tag `2.5.0`,
+  repository resource `dn-templates` = `DisplayNote/dn-pipeline-templates` at `refs/heads/main`,
+  variable group `montage-client-environment-variables`. Stage order: `SecretScan` +
+  `DependencyScan` (in parallel) → `setup` → `tests_coverage` → build stages → deploy; every
+  dependency is explicit. Stages and templates used:
+  - `secret-scan-stage.yml@dn-templates` (the `SecretScan` stage: gitleaks over the full
+    history of the built ref, blocking; exceptions in `.gitleaks.toml` / `.gitleaksignore`);
+  - `dependency-scan-stage.yml@dn-templates` (the `DependencyScan` stage: OSV-Scanner + Grype,
+    blocking, `allowNoPackages: true`);
+  - `common/setup.yml@ci` (the `setup` stage, `dependsOn: [SecretScan, DependencyScan]`; its
+    check run is `VERSION ReadVersion`);
+  - `windows-x86_64/coverage.yml@ci` (the `tests_coverage` stage: QXmpp's ctest suites under
+    OpenCppCoverage, Windows Debug, audit mode `blocking: false`);
   - `macos_x86_64`, `macos_arm64` (`macos-15`, Xcode 26.2, Qt artifact `qt-mac-desktop-6.8.8`),
     `ios_arm64` (`qt-mac-ios-6.8.8` 1.0.1): `common/python.yml`, `common/conan/config.yml`,
     `common/xcode.yml`, `common/qt.yml`, `common/build-unix.yml` (CMake + Ninja);

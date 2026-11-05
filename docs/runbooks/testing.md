@@ -21,8 +21,10 @@ resumption changes.
 
 ## Where tests run
 
-- Locally only, in practice. DisplayNote CI (`ci/azure-pipelines.yml`) configures every
-  platform with `-DBUILD_TESTS=OFF`.
+- DisplayNote CI (`ci/azure-pipelines.yml`): the `tests_coverage` stage (after `SecretScan` +
+  `DependencyScan` and `setup`) builds with `-DBUILD_TESTS=ON` on Windows Debug and runs
+  `ctest` under OpenCppCoverage in audit mode (`blocking: false`: failures are warnings).
+  The platform build stages configure with `-DBUILD_TESTS=OFF`.
 - `.github/workflows/tests.yml` (upstream) would run `tests/travis/build-and-test`, but GitHub
   Actions workflows are not registered on `DisplayNote/qxmpp` (only Copilot code review runs
   there), so it does not run for this fork.

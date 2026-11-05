@@ -31,6 +31,7 @@
 - Do not generate SQL without parameterised queries
 - Flag any configuration changes that affect network exposure or access controls
 - NEVER read raw log files or paste log content into a prompt — sanitise with `dn_logscrub` first (`/log-sanitise <file>`) and work only from the `.scrubbed` copy (AI Security Roadmap 4.7)
+- CI runs a gitleaks secret-scan gate (`SecretScan` stage, `secret-scan-stage.yml@dn-templates` in `ci/azure-pipelines.yml`) in parallel with `DependencyScan`, ahead of every build/deploy stage. It is **blocking** (the template default, `failOnFindings: true`) — any finding in the full history of the built ref not accepted in `.gitleaksignore` fails the stage, so setup, tests, builds and deploy don't run. Repo-specific exceptions live at the repo root: allowlists in `.gitleaks.toml`, where every `[[allowlists]]` entry needs a `description` saying why it's safe, and accepted findings in `.gitleaksignore`, one fingerprint per line, each preceded by its own comment line saying what it was, why it's safe now, and who accepted it when (gitleaks ignores an entry with a trailing comment). The eleven accepted today are upstream unit-test vectors (XEP-0215/XEP-0176 example credentials, SASL DIGEST-MD5 digests, made-up public key IDs); the stage also applies the DisplayNote `dn-credential-call-argument` rule on top of `.gitleaks.toml`, so reproduce it locally with that rule too. See the headers of both files for the triage process. Never widen an allowlist to make the gate green — rotate/remove the real secret instead.
 
 Repo-specific:
 
@@ -189,8 +190,14 @@ Summary only; diagrams and flows live in [docs/architecture.md](docs/architectur
   `<os>/<BuildType>`, relative to where `conan export-pkg` runs); pass `--prefix` explicitly as
   `README.md` does.
 - `qxmppsasl` and other internal tests only build with `BUILD_INTERNAL_TESTS=ON`;
-  `qxmppcallmanager` only with `WITH_GSTREAMER=ON`. DisplayNote CI builds with `BUILD_TESTS=OFF`.
+  `qxmppcallmanager` only with `WITH_GSTREAMER=ON`. DisplayNote CI's platform builds use `BUILD_TESTS=OFF`; only the `tests_coverage`
+  stage builds them (`BUILD_TESTS=ON`, Windows Debug).
 - The `doc/` folder is upstream Doxygen input; DisplayNote docs go under `docs/`.
+- The `SecretScan` stage scans the full history of the built ref, upstream QXmpp history
+  included, so a finding in an old (or newly merged upstream) commit fails CI until it is
+  triaged: rotate it if real, then accept it by fingerprint in `.gitleaksignore`. Merging a
+  new upstream release can bring new test-vector findings. PRs that only touch `doc`,
+  `README.md`, `COPYING` or `LICENSES` are path-excluded and get no scan.
 
 ## Glossary
 
@@ -204,6 +211,6 @@ See [docs/glossary.md](docs/glossary.md).
 | STUN/TURN servers | ICE for Jingle calls / file transfer | `QXmppCallManager::setStunServers`/`setTurnServer`; `tests/qxmppiceconnection/` |
 | QCA, libomemo-c | Crypto for OMEMO and encrypted file sharing | `WITH_QCA`, `BUILD_OMEMO` in `CMakeLists.txt` |
 | GStreamer | Audio/video for Jingle calls | `WITH_GSTREAMER`, `cmake/modules/FindGStreamer.cmake` |
-| Azure Pipelines + `DisplayNote/qt-conan-ci` 2.4.0 | DisplayNote CI: builds every platform and deploys the Conan package | `ci/azure-pipelines.yml`, `conanfile.py`; [docs/runbooks/release.md](docs/runbooks/release.md) |
+| Azure Pipelines + `DisplayNote/qt-conan-ci` 2.5.0, `DisplayNote/dn-pipeline-templates` (main) | DisplayNote CI: secret scan (gitleaks) and dependency scan (OSV-Scanner + Grype), tests + coverage, builds every platform and deploys the Conan package | `ci/azure-pipelines.yml`, `conanfile.py`; [docs/runbooks/release.md](docs/runbooks/release.md) |
 | Conan (1.x) | Package format consumed by Montage | `conanfile.py` (`from conans import ConanFile`) |
 | GitHub Actions | Upstream workflows (`.github/workflows/tests.yml`, `push-docs.yml`); not registered on `DisplayNote/qxmpp` — only Copilot code review runs there. DisplayNote's docs-sync workflows (`docs-sync.yml`, `docs-catchup.yml`, roadmap 2.30) live on `1.6` but only run once they are on the default branch (`master`) or `1.6` becomes the default, and Actions is enabled for the fork; they need the `COPILOT_PAT` secret | [tools/docs-sync/README.md](tools/docs-sync/README.md) |
