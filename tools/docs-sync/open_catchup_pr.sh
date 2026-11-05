@@ -164,7 +164,7 @@ except Exception:
 PY
 )"
 fi
-TODOS="$(grep -rn "TODO(human)" AGENTS.md CLAUDE.md Docs doc docs 2>/dev/null | head -20 || true)"
+TODOS="$(grep -rn "TODO(human)" AGENTS.md CLAUDE.md docs 2>/dev/null | head -20 || true)"
 BODY="$(cat <<EOF
 $PR_HEADING
 

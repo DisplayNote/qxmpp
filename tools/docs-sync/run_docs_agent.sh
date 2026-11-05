@@ -19,7 +19,8 @@
 #   ANTHROPIC_API_KEY   - claude engine auth
 #
 # Output (consumed by the PR/branch step which commits/pushes/comments):
-#   - stages only doc files (AGENTS.md CLAUDE.md doc docs Docs .docs-sync.json)
+#   - stages only doc files (AGENTS.md CLAUDE.md docs .docs-sync.json); in qxmpp
+#     doc/ (upstream Doxygen input) and Docs/ are deliberately not staged
 #   - writes docs-agent.log (full agent transcript)
 # Host-agnostic: works under GitHub Actions or a plain shell.
 set -euo pipefail
@@ -156,7 +157,7 @@ fi
 
 # Stage only documentation surfaces (defense in depth against stray edits).
 # Only pass paths that exist: `git add` aborts the whole command on a pathspec
-# that matches nothing (e.g. `doc` in a repo whose docs root is `Docs`), which
+# that matches nothing (e.g. a CLAUDE.md that has been removed), which
 # would silently stage nothing.
 DOC_PATHS=()
 for p in AGENTS.md CLAUDE.md docs .docs-sync.json; do
