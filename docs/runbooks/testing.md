@@ -25,9 +25,11 @@ resumption changes.
   `DependencyScan` and `setup`) builds with `-DBUILD_TESTS=ON` on Windows Debug and runs
   `ctest` under OpenCppCoverage in audit mode (`blocking: false`: failures are warnings).
   The platform build stages configure with `-DBUILD_TESTS=OFF`.
-- `.github/workflows/tests.yml` (upstream) would run `tests/travis/build-and-test`, but GitHub
-  Actions workflows are not registered on `DisplayNote/qxmpp` (only Copilot code review runs
-  there), so it does not run for this fork.
+- `.github/workflows/tests.yml` (upstream, `on: [push, pull_request]`) runs
+  `tests/travis/build-and-test`. It was not registered on `DisplayNote/qxmpp` until the push
+  that added the docs-sync workflows (November 2026); it now runs on every push and PR, but
+  it is upstream's workflow, not a DisplayNote gate, and its `Install Qt` (macOS/Windows) and
+  `reuse` jobs fail on this fork.
 
 ## Run
 

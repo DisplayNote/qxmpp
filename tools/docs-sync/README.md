@@ -224,6 +224,7 @@ not made in this PR):
   there, so the copies on `master` only need to exist; the scripts, prompt and
   manifest stay on `1.6`.
 
-GitHub Actions must also be enabled for the fork (Settings → Actions → General);
-forks start with workflows disabled, and upstream's `tests.yml` / `push-docs.yml`
-are not registered here today.
+GitHub Actions is enabled for the fork: upstream's `tests.yml` (`on: [push,
+pull_request]`) has been registered since the push that added this pack, and it
+runs on every branch push and PR. It is upstream's workflow, not DisplayNote CI
+(Azure Pipelines gates the package); its `Install Qt` and `reuse` jobs fail here.
