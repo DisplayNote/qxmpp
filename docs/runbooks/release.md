@@ -22,7 +22,7 @@ from the `azure-pipelines` app):
 - **Triggers**: every pushed tag (`trigger: tags: include: '*'`) and every non-draft PR to any
   branch, except PRs that only touch `doc`, `README.md`, `COPYING` or `LICENSES`. Plain branch
   pushes do not trigger it.
-- **Templates**: repository resource `ci` = `DisplayNote/qt-conan-ci` at tag `2.4.0`, variable
+- **Templates**: repository resource `ci` = `DisplayNote/qt-conan-ci` at tag `2.8.1`, variable
   group `montage-client-environment-variables`. Stages and templates used:
   - `common/setup.yml@ci` (the `setup` stage; its check run is `VERSION ReadVersion`);
   - `macos_x86_64`, `macos_arm64` (`macos-15`, Xcode 26.2, Qt artifact `qt-mac-desktop-6.8.8`),

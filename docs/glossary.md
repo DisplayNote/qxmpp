@@ -23,5 +23,5 @@
 | QXmppTask / QXmppPromise | QXmpp's own future/promise pair for async results |
 | `QXmppLogger` message types | `DEBUG`, `INFO`, `WARNING`, `RECEIVED`, `SENT` (`src/base/QXmppLogger.cpp`) |
 | `@dn/stable`, `@dn/develop` | DisplayNote Conan user/channels used in the `README.md` packaging examples |
-| qt-conan-ci | `DisplayNote/qt-conan-ci`, the Azure Pipelines template repository used by `ci/azure-pipelines.yml` (pinned to tag `2.4.0`) |
+| qt-conan-ci | `DisplayNote/qt-conan-ci`, the Azure Pipelines template repository used by `ci/azure-pipelines.yml` (pinned to tag `2.8.1`) |
 | AB#nnnnn | Azure Boards work item referenced in DisplayNote commit messages |

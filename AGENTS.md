@@ -188,6 +188,6 @@ See [docs/glossary.md](docs/glossary.md).
 | STUN/TURN servers | ICE for Jingle calls / file transfer | `QXmppCallManager::setStunServers`/`setTurnServer`; `tests/qxmppiceconnection/` |
 | QCA, libomemo-c | Crypto for OMEMO and encrypted file sharing | `WITH_QCA`, `BUILD_OMEMO` in `CMakeLists.txt` |
 | GStreamer | Audio/video for Jingle calls | `WITH_GSTREAMER`, `cmake/modules/FindGStreamer.cmake` |
-| Azure Pipelines + `DisplayNote/qt-conan-ci` 2.4.0 | DisplayNote CI: builds every platform and deploys the Conan package | `ci/azure-pipelines.yml`, `conanfile.py`; [docs/runbooks/release.md](docs/runbooks/release.md) |
+| Azure Pipelines + `DisplayNote/qt-conan-ci` 2.8.1 | DisplayNote CI: builds every platform and deploys the Conan package | `ci/azure-pipelines.yml`, `conanfile.py`; [docs/runbooks/release.md](docs/runbooks/release.md) |
 | Conan (1.x) | Package format consumed by Montage | `conanfile.py` (`from conans import ConanFile`) |
 | GitHub Actions | Upstream workflows (`.github/workflows/tests.yml`, `push-docs.yml`); not registered on `DisplayNote/qxmpp` — only Copilot code review runs there | — |
