@@ -33,7 +33,7 @@ resources:
   repositories:
     - repository: ci
       type: github
-      endpoint: "DisplayNote through PAT."
+      endpoint: "DisplayNote"
       name: DisplayNote/qt-conan-ci
       # 2.5.0 adds the tests + coverage stage (roadmap 2.23).
       ref: refs/tags/2.5.0
@@ -41,7 +41,7 @@ resources:
     # templates; track main intentionally to receive template updates.
     - repository: dn-templates
       type: github
-      endpoint: "DisplayNote through PAT."
+      endpoint: "DisplayNote"
       name: DisplayNote/dn-pipeline-templates
       ref: refs/heads/main
 
