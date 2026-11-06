@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 DisplayNote
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# Licensing information for DisplayNote-specific files on the 1.6 line that do
+# not carry an SPDX header (AI-agent docs, CI/packaging config, vendored skills).
+# Upstream QXmpp files keep their own headers, which take precedence.
+version = 1
+
+[[annotations]]
+path = [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "conanfile.py",
+    "ci/**",
+    "docs/**",
+    ".agents/**",
+    ".github/instructions/**",
+    ".github/skills/**",
+    ".github/workflows/docs-catchup.yml",
+    ".github/workflows/docs-sync.yml",
+    ".docs-sync.json",
+    ".gitleaks.toml",
+    ".gitleaksignore",
+    "tools/docs-sync/**",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = "DisplayNote"
+SPDX-License-Identifier = "LicenseRef-DisplayNote-Proprietary"
