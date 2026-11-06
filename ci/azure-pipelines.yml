@@ -429,9 +429,17 @@ stages:
         -DCMAKE_PREFIX_PATH=$(Build.BinariesDirectory)/Qt/$(qt-version)/msvc2022_64
       dependsOn: [setup, tests_coverage]
 
+  # The Conan package version is the tag name (common/setup.yml copies it into
+  # the build number). DisplayNote releases are tagged X.Y.Z, so the package is
+  # qxmpp/X.Y.Z, which the dependency scan in consuming repositories can parse
+  # (a v-prefixed version such as qxmpp/v1.6.6 cannot be identified, so it fails
+  # Montage's DependencyScan). bareTagsOnly skips this stage on any tag that
+  # does not start with a digit, so upstream-style vX.Y.Z tags no longer publish
+  # a package. Branch and PR builds are unaffected.
   - template: common/deploy-develop.yml@ci
     parameters:
       conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
+      bareTagsOnly: true
       stageDependencies: ['SecretScan', 'DependencyScan', 'setup', 'tests_coverage', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
       conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'macos.arm64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']
