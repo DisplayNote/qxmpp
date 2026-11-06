@@ -17,6 +17,12 @@ path = [
     ".agents/**",
     ".github/instructions/**",
     ".github/skills/**",
+    ".github/workflows/docs-catchup.yml",
+    ".github/workflows/docs-sync.yml",
+    ".docs-sync.json",
+    ".gitleaks.toml",
+    ".gitleaksignore",
+    "tools/docs-sync/**",
 ]
 precedence = "closest"
 SPDX-FileCopyrightText = "DisplayNote"
