@@ -45,8 +45,8 @@ public:
 };
 
 QXMPP_EXPORT void helperToXmlAddAttribute(QXmlStreamWriter *stream, const QString &name,
-                             const QString &value);
+                                          const QString &value);
 QXMPP_EXPORT void helperToXmlAddTextElement(QXmlStreamWriter *stream, const QString &name,
-                               const QString &value);
+                                            const QString &value);
 
 #endif  // QXMPPUTILS_H

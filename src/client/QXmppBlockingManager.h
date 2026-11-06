@@ -9,9 +9,9 @@
 #include "QXmppError.h"
 #include "QXmppTask.h"
 
-#include <QVector>
-
 #include <variant>
+
+#include <QVector>
 
 struct QXmppBlockingManagerPrivate;
 
