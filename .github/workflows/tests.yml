@@ -130,6 +130,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           style: file
+          # clang-tidy disabled: this job has no compile database or Qt install, so it
+          # only reports unresolved includes and false positives. clang-format still runs.
+          tidy-checks: '-*'
           version: 15
           files-changed-only: false
           thread-comments: true
