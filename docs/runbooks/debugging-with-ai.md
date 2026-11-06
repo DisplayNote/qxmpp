@@ -150,10 +150,10 @@ does not build (`WITH_GSTREAMER` and `BUILD_OMEMO` are off) or that nothing in t
 shows DisplayNote using (the server module) — call peer JIDs (`src/client/QXmppCall.cpp`), OMEMO JIDs and device IDs
 (`src/omemo/QXmppOmemoManager_p.cpp`) and user names with peer addresses
 (`src/server/QXmppIncomingClient.cpp`). `FileLogging` keeps all of this on disk in
-`QXmppClientLog.log` in the working directory unless `setLogFilePath()` is used. CI writes
-no QXmpp output: the Azure pipeline builds with `-DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF`,
-and the upstream GitHub workflows (`.github/workflows/tests.yml`) are not registered on
-`DisplayNote/qxmpp`. Locally, `ctest` output from `tests/qxmppiceconnection/` and
+`QXmppClientLog.log` in the working directory unless `setLogFilePath()` is used. CI logs can
+carry QXmpp output: the Azure platform builds use `-DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF`,
+but the `tests_coverage` stage runs `ctest`, and upstream's GitHub workflow
+(`.github/workflows/tests.yml`) now runs on `DisplayNote/qxmpp` pushes and PRs. Locally, `ctest` output from `tests/qxmppiceconnection/` and
 `tests/qxmppcallmanager/` (`StdoutLogging`) contains STUN dumps; with integration tests
 enabled (`QXMPP_TESTS_INTEGRATION_ENABLED`, `QXMPP_TESTS_JID`, `QXMPP_TESTS_PASSWORD`)
 `tests/qxmppomemomanager/tst_qxmppomemomanager.cpp` prints every `SENT`/`RECEIVED`

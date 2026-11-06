@@ -1,0 +1,250 @@
+# docs-sync.yml — keep technical documentation in sync with 1.6, nightly.
+# Roadmap 2.30. Companion to the 1.19 bootstrap.
+#
+# Once a day, and only when code actually changed, the agent reads the code
+# committed to 1.6 since the last documented point, makes the surgical doc
+# edits that change implies, and opens ONE documentation PR against 1.6.
+#
+# qxmpp: DisplayNote's line is the `1.6` branch, but the repository's default
+# branch is `master` (plain upstream QXmpp). GitHub only runs `schedule` and
+# offers `workflow_dispatch` for workflow files on the DEFAULT branch, so this
+# file on `1.6` alone does not run. See tools/docs-sync/README.md
+# ("qxmpp: default branch") for the options.
+#
+# It edits documentation only and never blocks anything.
+#
+# Why nightly instead of per-PR: one agent run per day per repo, instead of one
+# per push on every open PR, keeps the Copilot spend and the reviewer noise
+# bounded. The trade-off is that docs land in a follow-up PR rather than inside
+# the code PR that caused them, so review them promptly — a single unmerged docs
+# PR pauses the nightly (see "one PR at a time" below).
+#
+# Engine: GitHub Copilot CLI (default), billed to your org's Copilot
+# subscription. Swap to Claude Code with ENGINE=claude + ANTHROPIC_API_KEY.
+#
+# Auth: the Copilot CLI needs a USER token with Copilot access. The Actions
+# built-in GITHUB_TOKEN is a GitHub App token and is REJECTED by the Copilot
+# model endpoint ("server-to-server tokens not supported"), so a PAT is
+# required here. Create repo secret COPILOT_PAT = a fine-grained PAT with the
+# "Copilot Requests" permission, from a user/service account that holds a
+# Copilot seat. It is used ONLY for the model call (the agent step), never for
+# pushing — pushes use the built-in token so they don't re-trigger workflows.
+# (The no-PAT, built-in-token path only works under GitHub Agentic Workflows
+# (gh-aw), not the standalone copilot CLI used here.)
+#
+# One-time setup (see tools/docs-sync/README.md):
+#   - Repo secret COPILOT_PAT (user PAT with Copilot access).
+#   - Settings > Actions > General > Workflow permissions = "Read and write".
+#   - Commit a .docs-sync.json manifest at the repo root.
+
+name: docs-sync
+
+on:
+  schedule:
+    # Nightly 03:00 UTC. docs-catchup's full weekly sweep is Mon 05:00 UTC, so
+    # the two never contend for the same window.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Branch to document and target the PR at'
+        default: '1.6'
+        required: true
+      since:
+        description: 'Override the lookback (git date expr, e.g. "3 days ago"). Empty = resume from the last documented commit.'
+        default: ''
+        required: false
+
+# Least privilege: push the docs branch + open/label the docs PR. (Copilot
+# inference is authenticated by the COPILOT_PAT user token, not by these
+# Actions permissions.)
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:             # never overlap two nightly runs
+  group: docs-sync
+  cancel-in-progress: false
+
+jobs:
+  docs-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.base || '1.6' }}
+          fetch-depth: 0          # full history: freshness metric + anchor..HEAD diff
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Install Copilot CLI
+        # Pin for determinism via the repo variable COPILOT_CLI_VERSION (set it
+        # in Settings → Variables to a known-good version, e.g. 0.1.2). Defaults
+        # to 'latest' until pinned. See tools/docs-sync/README.md.
+        env:
+          COPILOT_CLI_VERSION: ${{ vars.COPILOT_CLI_VERSION || 'latest' }}
+        run: npm install -g "@github/copilot@${COPILOT_CLI_VERSION}"
+
+      - name: Compute nightly scope
+        id: scope
+        env:
+          SINCE_INPUT: ${{ github.event.inputs.since }}
+        run: |
+          set -euo pipefail
+          # Resume from the last DOCUMENTED point rather than a blind 24h window.
+          # Doc commits from this pack record the base-branch sha they were written
+          # against in a `Docs-sync-anchor:` trailer, so once such a PR merges we
+          # know exactly how far the docs reach. Anchoring there makes a failed,
+          # skipped or still-unmerged night lossless: the anchor only moves forward
+          # when a docs PR actually merges, whereas a blind 24h window would drop
+          # those commits silently. The trailer lives in the commit body, which
+          # survives merge, squash and rebase merges alike.
+          ANCHOR=""
+          if [ -n "${SINCE_INPUT:-}" ]; then
+            ANCHOR="$(git rev-list -1 --before="$SINCE_INPUT" HEAD || true)"
+            echo "Anchor from manual since='$SINCE_INPUT': ${ANCHOR:-<none>}"
+          else
+            DOCS_COMMIT="$(git log -1 --format=%H --grep='^Docs-sync-anchor:' HEAD || true)"
+            if [ -n "$DOCS_COMMIT" ]; then
+              CANDIDATE="$(git log -1 --format=%B "$DOCS_COMMIT" \
+                | sed -n 's/^Docs-sync-anchor:[[:space:]]*\([0-9a-f]\{7,40\}\).*$/\1/p' | tail -1)"
+              # Only trust it if it is a real commit that this branch descends from —
+              # a rewritten/force-pushed history must fall back, not diff nonsense.
+              if [ -n "$CANDIDATE" ] && git merge-base --is-ancestor "$CANDIDATE" HEAD 2>/dev/null; then
+                ANCHOR="$(git rev-parse "$CANDIDATE")"
+                echo "Anchor from doc commit $DOCS_COMMIT: $ANCHOR"
+              else
+                echo "Doc commit $DOCS_COMMIT has no usable anchor ('${CANDIDATE:-<none>}')."
+              fi
+            fi
+            if [ -z "$ANCHOR" ]; then
+              # First run on a repo whose history has no doc commit yet. 26h (not 24)
+              # so scheduler drift between two nightly runs can't leave a gap.
+              ANCHOR="$(git rev-list -1 --before='26 hours ago' HEAD || true)"
+              echo "No doc anchor in history; falling back to a 26h window: ${ANCHOR:-<none>}"
+            fi
+          fi
+          # No anchor at all (all history is newer than the window): diff the empty
+          # tree, i.e. treat every file as new. Two-arg form, so a tree-ish works.
+          [ -n "$ANCHOR" ] || ANCHOR="$(git hash-object -t tree /dev/null)"
+          # Only non-doc changes are worth reacting to; the agent decides which need docs.
+          # (doc/ stays filtered out too: it is upstream Doxygen input, not code, and
+          # the agent does not write there.)
+          git diff --name-only "$ANCHOR" HEAD \
+            | grep -Ev '^(Docs/|doc/|docs/|AGENTS\.md|CLAUDE\.md|\.docs-sync\.json)' > docs-scope.txt || true
+          if [ -s docs-scope.txt ]; then
+            echo "have_scope=true" >> "$GITHUB_OUTPUT"
+            echo "$(wc -l < docs-scope.txt) changed code file(s) since $ANCHOR:"
+            head -50 docs-scope.txt
+          else
+            echo "have_scope=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=docs-sync::No code changes since the last documented commit — nothing to sync tonight."
+          fi
+
+      - name: Check for an open documentation PR
+        id: openpr
+        if: steps.scope.outputs.have_scope == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # One docs PR at a time. While last night's is still unreviewed, skip the
+          # (paid) agent run entirely instead of stacking a second PR on top of it.
+          # Nothing is lost: the anchor above doesn't advance until a docs PR merges,
+          # so the next run re-proposes the whole undocumented delta.
+          # Fail closed: `|| echo 0` here would read a gh/API error as "no docs PR
+          # is open" and let the run stack a second one on top of the first.
+          if ! OPEN="$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("chore/docs-"))] | length')"; then
+            echo "::warning title=docs-sync skipped::Could not list open PRs (gh/API error); skipping tonight's run rather than risk opening a duplicate docs PR."
+            echo "clear=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$OPEN" in
+            ''|*[!0-9]*)
+              echo "::warning title=docs-sync skipped::Unexpected open-PR count '$OPEN'; skipping tonight's run."
+              echo "clear=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          if [ "$OPEN" != "0" ]; then
+            echo "clear=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=docs-sync skipped::A documentation PR is already open; skipping tonight's run until it is merged or closed."
+          else
+            echo "clear=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Coverage + freshness (report)
+        run: python tools/docs-sync/docs_freshness.py --manifest .docs-sync.json --json-out docs-freshness.json --mode report || true
+
+      # The Copilot engine needs a user PAT (the built-in token is rejected). If
+      # it isn't configured, skip the agent rather than failing — this workflow
+      # must never go red on a schedule. Surface a notice so the gap is visible.
+      - name: Check Copilot auth
+        id: auth
+        env:
+          COPILOT_PAT: ${{ secrets.COPILOT_PAT }}
+        run: |
+          if [ -n "$COPILOT_PAT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=docs-sync skipped::COPILOT_PAT secret is not configured, so the docs agent did not run. See tools/docs-sync/README.md to enable it."
+          fi
+
+      - name: Run docs-maintenance agent
+        id: agent
+        if: >-
+          steps.scope.outputs.have_scope == 'true' &&
+          steps.openpr.outputs.clear == 'true' &&
+          steps.auth.outputs.ready == 'true'
+        # Non-fatal: a transient agent error (rate limit, network) must not turn a
+        # scheduled run red. The failure is still visible on the step; the PR step
+        # below is a no-op when nothing was staged.
+        continue-on-error: true
+        env:
+          ENGINE: copilot
+          # User PAT with Copilot access — the built-in GITHUB_TOKEN is an App
+          # token and is rejected by the Copilot model endpoint.
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
+          MAINTENANCE_PROMPT: docs/ai/prompts/docs-maintenance.md
+          SCOPE_FILE: docs-scope.txt
+        run: bash tools/docs-sync/run_docs_agent.sh
+
+      - name: Open documentation PR
+        # Gated on the agent step actually succeeding: it is continue-on-error, so
+        # without this the PR step would still run after a failed agent run and
+        # could commit whatever half-finished state was left staged.
+        if: >-
+          steps.scope.outputs.have_scope == 'true' &&
+          steps.openpr.outputs.clear == 'true' &&
+          steps.auth.outputs.ready == 'true' &&
+          steps.agent.outcome == 'success'
+        # Non-fatal: transient PR create/label errors (rate limit, API flake)
+        # shouldn't turn the nightly schedule red.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Same script as docs-catchup, in its scoped nightly mode: branch
+          # chore/docs-nightly-*, scoped PR wording, defers to any open docs PR.
+          MODE: nightly
+          BASE: ${{ github.event.inputs.base || '1.6' }}
+        run: bash tools/docs-sync/open_catchup_pr.sh
+
+      - name: Upload freshness report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs-freshness-nightly-${{ github.run_id }}
+          path: docs-freshness.json
+          if-no-files-found: ignore

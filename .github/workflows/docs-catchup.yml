@@ -1,0 +1,155 @@
+# docs-catchup.yml — reconcile existing documentation drift. Roadmap 2.30.
+#
+# The nightly docs-sync workflow only covers the files each day's commits touch.
+# This one closes the gap that already exists (the repo ran for a while without
+# doc updates) and acts as an ongoing safety net for "silent drift" a scoped diff
+# can't see (behaviour changed, file barely moved).
+#
+# Merging its PR also re-plants the `Docs-sync-anchor:` commit that the nightly
+# resumes from, so a full sweep resets the nightly's baseline to "everything up
+# to here is documented" (see open_catchup_pr.sh).
+#
+# It runs a FULL drift sweep (no scope) and opens ONE dedicated catch-up PR
+# against 1.6 for review. Documentation only; never blocks anything.
+#
+# Triggers:
+#   - workflow_dispatch : run it now (the one-time backfill).
+#   - schedule (weekly) : ongoing safety net; opens a PR only if docs drifted.
+
+name: docs-catchup
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base branch to reconcile and target the PR at'
+        default: '1.6'
+        required: true
+  schedule:
+    - cron: '0 5 * * 1'   # Mondays 05:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Copilot inference is authenticated by the COPILOT_PAT user token (the Actions
+  # built-in token is an App token and is rejected by the Copilot model endpoint).
+
+concurrency:
+  group: docs-catchup
+  cancel-in-progress: false
+
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.base || '1.6' }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Install Copilot CLI
+        # Pin for determinism via the repo variable COPILOT_CLI_VERSION (set it
+        # in Settings → Variables to a known-good version). Defaults to 'latest'
+        # until pinned. See tools/docs-sync/README.md.
+        env:
+          COPILOT_CLI_VERSION: ${{ vars.COPILOT_CLI_VERSION || 'latest' }}
+        run: npm install -g "@github/copilot@${COPILOT_CLI_VERSION}"
+
+      - name: Coverage + freshness (before)
+        run: python tools/docs-sync/docs_freshness.py --manifest .docs-sync.json --json-out docs-freshness.json --mode report || true
+
+      - name: Check for an open documentation PR
+        id: openpr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # One docs PR at a time. While a nightly or catch-up PR is still
+          # unreviewed, skip the (paid) agent run entirely instead of running a
+          # full sweep whose output open_catchup_pr.sh would just discard.
+          # Fail closed: `|| echo 0` here would read a gh/API error as "no docs PR
+          # is open" and let the run stack a second one on top of the first.
+          if ! OPEN="$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("chore/docs-"))] | length')"; then
+            echo "::warning title=docs-catchup skipped::Could not list open PRs (gh/API error); skipping this run rather than risk opening a duplicate docs PR."
+            echo "clear=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$OPEN" in
+            ''|*[!0-9]*)
+              echo "::warning title=docs-catchup skipped::Unexpected open-PR count '$OPEN'; skipping this run."
+              echo "clear=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          if [ "$OPEN" != "0" ]; then
+            echo "clear=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=docs-catchup skipped::A documentation PR is already open; skipping this run until it is merged or closed."
+          else
+            echo "clear=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The Copilot engine needs a user PAT (the built-in token is rejected). If
+      # it isn't configured, skip the sweep rather than failing — this workflow
+      # must never block anything. Surface a notice so the gap is visible.
+      - name: Check Copilot auth
+        id: auth
+        env:
+          COPILOT_PAT: ${{ secrets.COPILOT_PAT }}
+        run: |
+          if [ -n "$COPILOT_PAT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=docs-catchup skipped::COPILOT_PAT secret is not configured, so the drift sweep did not run. See tools/docs-sync/README.md to enable it."
+          fi
+
+      - name: Full drift sweep
+        id: agent
+        if: steps.openpr.outputs.clear == 'true' && steps.auth.outputs.ready == 'true'
+        # Non-fatal: a transient agent error must not make the weekly scheduled
+        # run fail noisily. The failure stays visible on the step; the PR-open
+        # step below is a no-op when nothing was staged.
+        continue-on-error: true
+        env:
+          ENGINE: copilot
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}   # user PAT w/ Copilot access
+          MAINTENANCE_PROMPT: docs/ai/prompts/docs-maintenance.md
+          SCOPE_FILE: ''          # empty scope => full sweep / catch-up
+        run: bash tools/docs-sync/run_docs_agent.sh
+
+      - name: Open catch-up PR
+        # Gated on the sweep actually succeeding: it is continue-on-error, so
+        # without this the PR step would still run after a failed sweep and could
+        # commit whatever half-finished state was left staged.
+        if: >-
+          steps.openpr.outputs.clear == 'true' &&
+          steps.auth.outputs.ready == 'true' &&
+          steps.agent.outcome == 'success'
+        # Non-fatal: transient PR create/edit errors (rate limit, permissions,
+        # API flake) shouldn't turn the weekly schedule red.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE: ${{ github.event.inputs.base || '1.6' }}
+        run: bash tools/docs-sync/open_catchup_pr.sh
+
+      - name: Upload freshness report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs-freshness-catchup-${{ github.run_id }}
+          path: docs-freshness.json
+          if-no-files-found: ignore

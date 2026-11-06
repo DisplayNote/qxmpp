@@ -21,6 +21,16 @@ This file only lists the rules that hurt most when ignored.
 - Format edited files with `clang-format -i` (repo `.clang-format`).
 - Sanitise any QXmpp or host log before reading it: `/log-sanitise <file>`
   ([docs/runbooks/debugging-with-ai.md](docs/runbooks/debugging-with-ai.md)).
+- Know the CI stage order: `SecretScan` + `DependencyScan` (in parallel, `dependsOn: []`) →
+  `setup` → `tests_coverage` → build stages → deploy. Every dependency is explicit; a new
+  build stage needs `dependsOn: [setup, tests_coverage]` and an entry in the deploy stage's
+  `stageDependencies`.
+- Treat the gitleaks `SecretScan` gate as blocking: it scans the full history of the built
+  ref. `.gitleaks.toml` allowlist entries each need a `description`; `.gitleaksignore`
+  fingerprints each need a preceding comment line (never a trailing one). Never widen either
+  just to silence a finding.
+- Treat `.agents/skills/*` and `.github/skills/*` as generated: re-sync with `/sync-skill
+  <name>` from the `displaynote-engineering` plugin instead of hand-editing.
 
 ## DON'T
 
@@ -43,7 +53,7 @@ cd build && ctest --output-on-failure -R tst_qxmppclient
 ```
 
 Slash commands from the `displaynote-engineering` plugin that apply here:
-`/log-sanitise`, `/secret-scan-setup`, `/docs-update`.
+`/code-review`, `/log-sanitise`, `/secret-scan-setup`, `/sync-skill`, `/docs-update`.
 
 ## Pointers
 
