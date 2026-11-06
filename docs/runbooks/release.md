@@ -4,7 +4,7 @@
 
 | Branch | Content | Shipped to Montage? |
 |---|---|---|
-| `1.6` | Upstream 1.6.1 (`project(qxmpp VERSION 1.6.1)`) + 29 DisplayNote commits (including PR merges); DisplayNote tags `v1.6.2`–`v1.6.5` | Yes — `conanfile.py` and `ci/azure-pipelines.yml` live here |
+| `1.6` | Upstream 1.6.1 (`project(qxmpp VERSION 1.6.1)`) + 29 DisplayNote commits (including PR merges); DisplayNote tags `v1.6.2`–`v1.6.6`, bare `1.6.<n>` from the next release | Yes — `conanfile.py` and `ci/azure-pipelines.yml` live here |
 | `master` | Plain upstream QXmpp (`project(qxmpp VERSION 1.8.0)`), no DisplayNote commits | No |
 | `1.3`–`1.5`, `1.7` | Upstream release branches | No |
 
@@ -42,9 +42,11 @@ from the `azure-pipelines` app):
     `qt-linux-android-6.8.8`, NDK `28.2.13676358`, `ANDROID_PLATFORM=android-28`): same templates
     plus `common/ndk.yml`;
   - `windows-x86_64/build.yml@ci` (MSVC 2022 x64 Qt kit);
-  - `common/deploy-develop.yml@ci` with `packageName: 'qxmpp'`, `conanfile: 'qxmpp/conanfile.py'`
-    and the profiles `msvc19.x86_64`, `macos.x86_64`, `macos.arm64`, `ios.arm64`,
-    `android.arm64-v8a`, `android.armeabi-v7a`, `android.x86_64`.
+  - `common/deploy-develop.yml@ci` with `packageName: 'qxmpp'`, `conanfile: 'qxmpp/conanfile.py'`,
+    `bareTagsOnly: true` and the profiles `msvc19.x86_64`, `macos.x86_64`, `macos.arm64`,
+    `ios.arm64`, `android.arm64-v8a`, `android.armeabi-v7a`, `android.x86_64`. The package
+    version is the tag name, so only a tag that starts with a digit (`X.Y.Z`) deploys; any other
+    tag, such as upstream-style `vX.Y.Z`, still builds but skips the deploy stage.
 - **CMake arguments** for every platform (`cmakeCommonArgs`): `-DBUILD_SHARED=ON
   -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DBUILD_UNVERSIONED_LIBRARY=ON`.
   Every platform is built in Debug and Release. There is no Linux desktop stage.
@@ -67,11 +69,29 @@ is uploaded) lives in `DisplayNote/qt-conan-ci`, not in this repository.
 
 ## Cutting a DisplayNote release
 
-Observed from the history: changes land on `1.6` through GitHub PRs (`Merge pull request #N
-from DisplayNote/<branch>`), then a `v1.6.<n>` tag is pushed on the merge commit (e.g. `v1.6.5`
-on `d51f9ef9`), which triggers the pipeline and its deploy stage. `project(... VERSION ...)` in
-`CMakeLists.txt` has stayed at `1.6.1`. Bumping the dependency in Montage happens in Montage,
-not here.
+Changes land on `1.6` through GitHub PRs (`Merge pull request #N from DisplayNote/<branch>`),
+then a **bare** `1.6.<n>` tag (no `v`) is pushed on the merge commit, which triggers the
+pipeline and its deploy stage and publishes `qxmpp/1.6.<n>@dn/develop`; promotion to
+`dn/stable` is done by the release pipeline. `project(... VERSION ...)` in `CMakeLists.txt` has
+stayed at `1.6.1`. Bumping the dependency in Montage happens in Montage, not here.
+
+Releases up to `v1.6.6` were tagged with a `v` and published as `qxmpp/v1.6.<n>`. Consumers'
+dependency scans cannot identify a Conan version that does not start with a digit (it fails
+Montage's `DependencyScan`), so the deploy stage now runs only on bare tags
+(`bareTagsOnly: true`) and the next release is the first `qxmpp/1.6.<n>`. The old
+`v`-prefixed packages stay in the remote; Montage moves off them when it bumps to the first
+bare release.
+
+Bare tags are also a namespace upstream does not use. Upstream QXmpp tags every release
+`vX.Y.Z` and has no bare tags, both on GitHub (`qxmpp-project/qxmpp`) and on KDE
+(`invent.kde.org/libraries/qxmpp`, checked 2026-11-06). DisplayNote's `v1.6.2`–`v1.6.6` reuse
+upstream's naming, and `v1.6.1` on `origin` already shadows upstream's own `v1.6.1` (see "Which
+branch ships"). A bare `1.6.<n>` cannot be confused with an upstream release.
+
+Every tag still triggers the pipeline (`trigger: tags: include: '*'`), so a `v`-tag runs the
+scans, tests and every platform build; only the deploy stage is skipped. That also covers upstream
+syncs: if upstream's `vX.Y.Z` tags are ever pushed to `origin` (for example `git push --tags`
+after fetching upstream), they no longer publish a `qxmpp/vX.Y.Z` package.
 
 ## Taking a newer upstream release
 
