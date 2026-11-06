@@ -33,15 +33,16 @@ resources:
   repositories:
     - repository: ci
       type: github
-      endpoint: "DisplayNote through PAT."
+      endpoint: "DisplayNote"
       name: DisplayNote/qt-conan-ci
       # 2.5.0 adds the tests + coverage stage (roadmap 2.23).
-      ref: refs/tags/2.5.0
+      # 2.8.1 keeps 2.8.0's templates; only its examples moved to the DisplayNote GitHub App connection.
+      ref: refs/tags/2.8.1
     # AI Security Roadmap 4.1 — shared dependency-scanning (OSV-Scanner + Grype)
     # templates; track main intentionally to receive template updates.
     - repository: dn-templates
       type: github
-      endpoint: "DisplayNote through PAT."
+      endpoint: "DisplayNote"
       name: DisplayNote/dn-pipeline-templates
       ref: refs/heads/main
 

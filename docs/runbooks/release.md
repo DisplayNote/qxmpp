@@ -22,7 +22,7 @@ from the `azure-pipelines` app):
 - **Triggers**: every pushed tag (`trigger: tags: include: '*'`) and every non-draft PR to any
   branch, except PRs that only touch `doc`, `README.md`, `COPYING` or `LICENSES`. Plain branch
   pushes do not trigger it.
-- **Templates**: repository resource `ci` = `DisplayNote/qt-conan-ci` at tag `2.5.0`,
+- **Templates**: repository resource `ci` = `DisplayNote/qt-conan-ci` at tag `2.8.1`,
   repository resource `dn-templates` = `DisplayNote/dn-pipeline-templates` at `refs/heads/main`,
   variable group `montage-client-environment-variables`. Stage order: `SecretScan` +
   `DependencyScan` (in parallel) → `setup` → `tests_coverage` → build stages → deploy; every
