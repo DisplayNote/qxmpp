@@ -59,9 +59,20 @@ variables:
   - name: cmakeCommonArgs
     value: '-DBUILD_SHARED=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOCUMENTATION=OFF -DBUILD_UNVERSIONED_LIBRARY=ON -DWITH_QCA=OFF'
 
-# Stage order: DependencyScan -> setup (VERSION) -> tests_coverage -> build
-# stages -> deploy. Every dependency is explicit. (No SecretScan stage here.)
+# Stage order: SecretScan + DependencyScan (in parallel) -> setup (VERSION) ->
+# tests_coverage -> build stages -> deploy. Every dependency is explicit.
 stages:
+  # AI Security Roadmap 4.1 — secret scanning from the same dn-templates
+  # resource. Both scan stages declare dependsOn: [], so they start together.
+  # gitleaks over the full history of the built ref; blocking (template default
+  # failOnFindings: true). Accepted findings live in .gitleaksignore at the repo
+  # root, one fingerprint per line, each preceded by its own comment line.
+  - template: secret-scan-stage.yml@dn-templates
+    parameters:
+      pool:
+        name: agent-pool-ubuntu2204-short-jobs-vmss
+      workspaceClean: all
+
   # QXmpp is built here against Qt only (QCA, OMEMO and GStreamer stay off, see
   # cmakeCommonArgs); Qt is supplied by qt-conan-ci and scanned in the products
   # that ship it. There are no lockfiles or manifests for OSV-Scanner to read, so
@@ -76,7 +87,7 @@ stages:
 
   - template: common/setup.yml@ci
     parameters:
-      dependsOn: [DependencyScan]
+      dependsOn: [SecretScan, DependencyScan]
 
   # Roadmap 2.23 — QXmpp's own test suites (ctest, BUILD_TESTS=ON) under
   # OpenCppCoverage (Windows, Debug). Shared library, like the product build, so
@@ -422,5 +433,5 @@ stages:
     parameters:
       conanfile: 'qxmpp/conanfile.py'
       packageName: 'qxmpp'
-      stageDependencies: ['DependencyScan', 'setup', 'tests_coverage', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
+      stageDependencies: ['SecretScan', 'DependencyScan', 'setup', 'tests_coverage', 'windows_x86_64', 'macos_x86_64', 'macos_arm64', 'ios_arm64', 'android_arm64_v8a', 'android_armv7', 'android_x86_64']
       conanProfiles: ['msvc19.x86_64', 'macos.x86_64', 'macos.arm64', 'ios.arm64', 'android.arm64-v8a', 'android.armeabi-v7a', 'android.x86_64']

@@ -1,0 +1,49 @@
+# .gitleaksignore — accepted findings, one fingerprint per line.
+# AI Security Roadmap control 4.1.
+#
+# A fingerprint identifies ONE finding: <commit>:<file>:<rule-id>:<line>
+# (copy it verbatim from the pipeline log or the gitleaks-report.json artifact).
+# Use this file only for:
+#   * a historical secret that has been ROTATED/REVOKED and cannot be removed
+#     from history without a rewrite the team has decided not to do;
+#   * a confirmed false positive that is too specific for a .gitleaks.toml
+#     allowlist.
+# Every fingerprint is preceded by a comment LINE: what it was, why it is safe
+# now, who accepted it and when. gitleaks does NOT accept trailing comments on
+# the fingerprint line itself (verified with 8.30.1 — the entry is silently
+# ignored). Never add a fingerprint for a secret that is still valid.
+#
+# Example:
+# dev Mailgun key, revoked 2026-09-22 (Jose); value now injected by CI variable
+# 3f2a9c1e0b7d4a5f6c8e9d0a1b2c3d4e5f6a7b8c:src/config/dev.env:generic-api-key:12
+
+# ── Accepted findings ────────────────────────────────────────────────────────
+# Eleven hits, all in upstream QXmpp unit tests (tests/), found by gitleaks 8.30.1
+# over the full history of origin/1.6 on 2026-11-05 with the same config the
+# SecretScan stage uses (this repo's .gitleaks.toml + the DisplayNote
+# dn-credential-call-argument rule): five generic-api-key, six
+# dn-credential-call-argument. None is a credential for any system DisplayNote or
+# upstream runs.
+#
+# XEP-0215 (External Service Discovery) example: TURN password copied from the XEP's own example stanza, host relay.shakespeare.lit / TEST-NET 192.0.2.1, no live service; accepted by Juan Garcia 2026-11-05
+6ea3edfd83a0bf1558d43e48eac563730276c175:tests/qxmppexternalservicediscoverymanager/tst_qxmppexternalservicediscoverymanager.cpp:generic-api-key:57
+# XEP-0215 (External Service Discovery) example: same XEP example TURN password in the IQ parsing test, documentation-only host, no live service; accepted by Juan Garcia 2026-11-05
+6ea3edfd83a0bf1558d43e48eac563730276c175:tests/qxmppexternalservicediscoveryiq/tst_qxmppexternalservicediscoveryiq.cpp:generic-api-key:162
+# SASL DIGEST-MD5 server test vector: rspauth digest computed from the test's fixed nonce/cnonce and dummy password, protocol output not a secret; accepted by Juan Garcia 2026-11-05
+aab1b6b824d17fc30184a707f8a2763f06c0219e:tests/sasl.cpp:generic-api-key:181
+# SASL DIGEST-MD5 client test vector: expected response digest for the test's fixed nonce/cnonce, protocol output not a secret; accepted by Juan Garcia 2026-11-05
+12bf99e94f3037b083bbb4adc8897c7f7e55cb6e:tests/sasl.cpp:generic-api-key:65
+# SASL DIGEST-MD5 client test vector (earlier revision of the same test): expected response digest, protocol output not a secret; accepted by Juan Garcia 2026-11-05
+8626bb00697e224231227c35c2df301b3dc8f6b2:tests/sasl.cpp:generic-api-key:60
+# XEP-0176 (Jingle ICE-UDP) example: transport pwd copied from the XEP's own example stanza into the JingleIq setter test, no ICE session behind it; accepted by Juan Garcia 2026-11-05
+3bd90b240c2692f6654fb0967556caeacf478f5a:tests/qxmppjingleiq/tst_qxmppjingleiq.cpp:dn-credential-call-argument:123
+# ATM/trust test data: made-up sender key ID (public key fingerprint, hex) in the message sender-key setter test, not key material; accepted by Juan Garcia 2026-11-05
+bb8780ecdbfe7eddb8280e696871e71b744d0bff:tests/qxmppmessage/tst_qxmppmessage.cpp:dn-credential-call-argument:1222
+# ATM/trust test data: made-up own OX key ID (public key fingerprint, hex) in the trust-storage test, not key material; accepted by Juan Garcia 2026-11-05
+b147ea5f4004cbd9aa2e7ae3936734a869bf3a44:tests/qxmpptrustmemorystorage/tst_qxmpptrustmemorystorage.cpp:dn-credential-call-argument:47
+# ATM/trust test data: made-up own OMEMO key ID (public key fingerprint, hex) in the trust-storage test, not key material; accepted by Juan Garcia 2026-11-05
+b147ea5f4004cbd9aa2e7ae3936734a869bf3a44:tests/qxmpptrustmemorystorage/tst_qxmpptrustmemorystorage.cpp:dn-credential-call-argument:48
+# ATM/trust test data: made-up sender key ID (public key fingerprint, hex) in the ATM manager test, not key material; accepted by Juan Garcia 2026-11-05
+bb8780ecdbfe7eddb8280e696871e71b744d0bff:tests/qxmppatmmanager/tst_qxmppatmmanager.cpp:dn-credential-call-argument:729
+# ATM/trust test data: made-up sender key ID (public key fingerprint, hex) in the ATM manager test, not key material; accepted by Juan Garcia 2026-11-05
+bb8780ecdbfe7eddb8280e696871e71b744d0bff:tests/qxmppatmmanager/tst_qxmppatmmanager.cpp:dn-credential-call-argument:793

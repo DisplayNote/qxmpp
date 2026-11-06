@@ -1,0 +1,14 @@
+{
+  "_comment": "Per-repo manifest for roadmap 2.30. The docs-sync agent maintains the `modules` list; docs_freshness.py reads it to compute coverage + freshness. Each module maps one doc file to the code path(s) it documents. This is DisplayNote's QXmpp fork (branch 1.6): the library lives in src/ (base, client, server, omemo); agent docs live under docs/ (upstream's Doxygen input in doc/ is out of scope).",
+  "docs_root": "docs",
+  "coverage_target": 0.80,
+  "freshness_max_lag_days": 30,
+  "min_doc_bytes": 400,
+  "ignore_code_globs": ["**/*.md"],
+  "modules": [
+    { "name": "base",   "doc": "docs/modules/base.md",   "code_paths": ["src/base"] },
+    { "name": "client", "doc": "docs/modules/client.md", "code_paths": ["src/client"] },
+    { "name": "server", "doc": "docs/modules/server.md", "code_paths": ["src/server"] },
+    { "name": "omemo",  "doc": "docs/modules/omemo.md",  "code_paths": ["src/omemo"] }
+  ]
+}

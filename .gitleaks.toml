@@ -1,0 +1,74 @@
+# .gitleaks.toml — DisplayNote baseline secret-scanning config
+# AI Security Roadmap control 4.1. Copy to the repo root ONLY when the repo needs
+# allowlists; without this file gitleaks runs its default rule set, which is the
+# same as `useDefault = true` below with no exceptions.
+#
+# Rules of the game
+#   * Allowlisting is a reviewed decision, not a way to make the pipeline green.
+#     Every entry needs a `description` saying WHY it is safe. The PR that adds
+#     it is reviewed like code.
+#   * A real secret is never allowlisted. Rotate it, remove it, then — if it is
+#     still in history — accept the specific finding by fingerprint in
+#     .gitleaksignore at the repository root, not here.
+#   * Prefer the narrowest scope: a path over a regex, a regex over a stopword.
+#   * Inline `# gitleaks:allow` on a single line is fine for obvious test
+#     fixtures; still say why in the surrounding comment.
+
+title = "DisplayNote secret-scanning baseline (AI Security 4.1)"
+
+[extend]
+useDefault = true
+# disabledRules = []      # never disable a whole rule without CTO sign-off
+
+# ── Files that cannot carry real secrets but trip generic rules ──────────────
+# (laragon): the kit's lock-file, media-asset (incl. text SVG) and vendored-dir
+# path allowlists are dropped — lock files / SVGs / vendored copies can carry
+# live credentials, and qxmpp's full-history scan reports no false positive in
+# them (its eleven findings are upstream unit-test vectors, accepted by fingerprint
+# in .gitleaksignore). Add a narrow, described exception here if a reviewed false
+# positive ever needs one.
+# (laragon): no allowlist for this file or .gitleaksignore. Neither trips a rule
+# (verified 2026-10-13, including realistic fingerprint entries; re-checked for
+# qxmpp 2026-11-05), and a path allowlist would hide a real credential pasted
+# into either file.
+
+# ── Obvious placeholders ─────────────────────────────────────────────────────
+[[allowlists]]
+description = "Documentation placeholders — the matched *secret* itself is a placeholder token"
+# (laragon): match the extracted secret only, anchored. The kit's
+# regexTarget = "match" + unanchored pattern let `the_api_key = "<live>"`
+# through because the variable name looked like a placeholder. The
+# `here` / `goes here` suffix is required: without it, weak but real values such
+# as `mypassword` or `an_access_token` would be allowlisted repo-wide. Only
+# forms that cannot be a real value are allowlisted below: bare words such as
+# `changeme`, `example` or `dummy` can be real default credentials, so a
+# fixture that uses one gets a reviewed inline `gitleaks:allow` instead.
+regexes = [
+  '''(?i)^(your|my|the|an?)[-_ ]?(api|secret|access|private|client)?[-_ ]?(key|token|secret|password)[-_ ]?(here|goes[-_ ]?here)$''',
+  '''(?i)^(xxx+|\*{4,}|<[^>]+>|\$\{[^}]+\}|%[A-Z_]+%)$''',
+]
+
+# ── Repo-specific exceptions go BELOW this line, each with a description ─────
+# Common DisplayNote cases and how to treat them (full triage rules: the
+# `secret-scan` skill in the displaynote-engineering plugin, and the header of
+# .gitleaksignore):
+#
+#   Android google-services.json / Firebase API keys
+#     They are shipped inside the APK by design, so they are not "secrets" in the
+#     gitleaks sense — but they MUST be restricted in the Google Cloud console
+#     (Android app + package name + SHA-1). Allowlist by path once that is
+#     confirmed:
+#       [[allowlists]]
+#       description = "Firebase client config — restricted in GCP console (ticket AB#…)"
+#       paths = ['''(^|/)app/src/[^/]+/google-services\.json$''']
+#
+#   Signing configs / keystore passwords in gradle.properties or CI variables
+#     Those are real secrets. Move them to a variable group / secret file in
+#     Azure Pipelines, never allowlist.
+#
+#   Test fixtures with fake tokens (unit tests, mock servers)
+#     Prefer an inline `# gitleaks:allow` (or `// gitleaks:allow`) on the line,
+#     or a narrow path allowlist for the fixtures folder:
+#       [[allowlists]]
+#       description = "Mock server fixtures — synthetic tokens, no live backend"
+#       paths = ['''(^|/)tests?/fixtures/''']
