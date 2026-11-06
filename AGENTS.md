@@ -12,7 +12,9 @@
   (Jingle calls) are off in DisplayNote builds (`BUILD_OMEMO` / `WITH_GSTREAMER` default `OFF`);
   optional QCA is auto-detected (`WITH_QCA` defaults to whether `Qca-qt6` is found,
   `CMakeLists.txt:49`), so an agent with QCA installed builds it in. `project(qxmpp VERSION 1.6.1)` in
-  `CMakeLists.txt`; DisplayNote release tags `v1.6.2`–`v1.6.5`.
+  `CMakeLists.txt`; DisplayNote release tags `v1.6.2`–`v1.6.6`, and bare `1.6.<n>` from the
+  next release: the tag is the Conan package version, and only bare tags deploy
+  (`bareTagsOnly: true`; see [docs/runbooks/release.md](docs/runbooks/release.md)).
 - **`1.6` is the DisplayNote branch.** It is upstream 1.6.1 plus DisplayNote commits
   (`git log --oneline origin/master..origin/1.6`): `conanfile.py`, `ci/azure-pipelines.yml`
   (`DisplayNote/qt-conan-ci` templates), the DisplayNote "Building" section of `README.md`,
