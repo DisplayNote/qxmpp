@@ -1,0 +1,6 @@
+Copyright (c) DisplayNote. All rights reserved.
+
+This file is proprietary to DisplayNote and is not licensed under the GNU
+Lesser General Public License that covers the QXmpp library sources in this
+repository. No licence to use, copy, modify or distribute it is granted except
+by prior written agreement with DisplayNote.
